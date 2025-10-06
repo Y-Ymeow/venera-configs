@@ -80,7 +80,7 @@ class GodaComicSource extends ComicSource {
             return { images };
         },
         
-        idMatch: 'manga/([\w-]+)'
+        idMatch: 'manga/([\w-]+)',
 
         link: {
             domains: [
