@@ -5,6 +5,11 @@ on:
     - cron: "0 3 * * *"   # 每天凌晨 3 点自动运行
   workflow_dispatch:       # 也允许手动触发
 
+# Ensure the workflow has the permissions needed to push/merge and create PRs.
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   sync:
 
@@ -16,4 +21,14 @@ jobs:
           owner: venera-app
           head: main
           base: main
-          token: ${{ secrets.PERSONAL_TOKEN }}
+          # Prefer a PERSONAL_TOKEN secret when set (useful when syncing forks across different accounts/orgs).
+          # If PERSONAL_TOKEN is not set, fallback to the automatically provided GITHUB token.
+          token: ${{ secrets.PERSONAL_TOKEN != '' && secrets.PERSONAL_TOKEN || github.token }}
+          # Optional inputs you can enable as needed:
+          merge_method: merge
+          pr_title: "Fork Sync: Update from parent repository"
+          # ignore_fail: false
+          # auto_approve: false
+          auto_merge: true
+          # retries: 4
+          # retry_after: 60
