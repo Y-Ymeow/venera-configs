@@ -13,4 +13,7 @@ jobs:
     steps:
       - uses: tgymnich/fork-sync@v2.0
         with:
+          owner: venera-app
+          head: main
+          base: main
           token: ${{ secrets.PERSONAL_TOKEN }}
