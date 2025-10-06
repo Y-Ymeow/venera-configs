@@ -40,10 +40,10 @@ class GodaComicSource extends ComicSource {
             const comicRes = await Network.get(`${this.baseUrl}/manga/${slug}`, this.headers);
             const doc = new HtmlDocument(comicRes.body);
             
-            const mangaId = doc.querySelector('#mangachapters').attributes['data-mid'];
-            const title = doc.querySelector('h1').text;
-            const cover = this.parseCoverUrl(doc.querySelector('img.object-cover').attributes.src);
-            const description = doc.querySelector('p.text-medium').text;
+            const mangaId = doc.querySelector('#mangachapters')?.attributes?.['data-mid'];
+            const title = doc.querySelector('h1')?.text || '';
+            const cover = this.parseCoverUrl(doc.querySelector('img.object-cover')?.attributes?.src || '');
+            const description = doc.querySelector('p.text-medium')?.text || '';
             const tags = doc.querySelectorAll('div.flex.flex-wrap.gap-x-unit-xs a').map(a => a.text.replace('#', '').trim());
 
             // Fetch chapters from API (GoDaManhua.kt logic)
