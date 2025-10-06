@@ -386,7 +386,7 @@ class ManwaComicSource extends ComicSource {
             'https://manwast.cc',
             'https://manwasy.cc',
         ];
-        const image_sources = this.loadData('image_source_list') || [{ value: '', text: 'None' }];
+        const image_sources = this.loadData('image_source_list') || [{ name: 'None', param: '' }];
 
         return {
             mirror: {
