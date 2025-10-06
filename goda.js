@@ -25,7 +25,7 @@ class GodaComicSource extends ComicSource {
     comic = {
         loadInfo: async (slug) => {
             const comicRes = await Network.get(`${this.baseUrl}/manga/${slug}`, this.headers);
-            let title, cover, description, tags, mangaId;
+            let title, cover, description, tags, mangaId, chapters = {};
 
             let match = comicRes.body.match(/<script>window\.__INITIAL_STATE__=(.*?);<\/script>/) || comicRes.body.match(/<script>window\.__NUXT__=(.*?);<\/script>/);
 
@@ -37,29 +37,39 @@ class GodaComicSource extends ComicSource {
                 cover = manga.cover;
                 description = manga.summary;
                 tags = manga.tags.map(t => t.name);
+
+                const res = await Network.get(`https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`, this.headers);
+                const json = JSON.parse(res.body);
+                const chapterData = json.data;
+
+                chapters = chapterData.chapters.reverse().map(ch => ({
+                    id: `${chapterData.slug}/${ch.attributes.slug}#${chapterData.id}/${ch.id}`,
+                    title: ch.attributes.title,
+                    time: new Date(ch.attributes.updatedAt).getTime(),
+                })).reduce((acc, ch) => {
+                    acc[ch.id] = ch.title;
+                    return acc;
+                }, {});
             } else {
-                throw new Error("Could not find __INITIAL_STATE__ or __NUXT__ object");
+                const doc = new HtmlDocument(comicRes.body);
+                const historyDiv = doc.querySelector('div#MangaHistoryStorage');
+                if (historyDiv) {
+                    title = historyDiv.attributes['data-title'];
+                    cover = historyDiv.attributes['data-cover'];
+                } else {
+                    const titleEle = doc.querySelector('h1.page-title');
+                    if(titleEle) title = titleEle.text;
+                    const coverEle = doc.querySelector('div.manga-poster img');
+                    if(coverEle) cover = coverEle.attributes.src;
+                }
             }
-
-            const res = await Network.get(`https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`, this.headers);
-            const json = JSON.parse(res.body);
-            const data = json.data;
-
-            const chapters = data.chapters.reverse().map(ch => ({
-                id: `${data.slug}/${ch.attributes.slug}#${data.id}/${ch.id}`,
-                title: ch.attributes.title,
-                time: new Date(ch.attributes.updatedAt).getTime(),
-            }));
 
             return new ComicDetails({
                 title: title,
                 cover: cover,
                 description: description,
                 tags: { "Tags": tags },
-                chapters: chapters.reduce((acc, ch) => {
-                    acc[ch.id] = ch.title;
-                    return acc;
-                }, {}),
+                chapters: chapters,
             });
         },
 
@@ -80,7 +90,7 @@ class GodaComicSource extends ComicSource {
                 "baozimh.org", "godamh.com", "m.baozimh.one", "bzmh.org", "g-mh.org", "m.g-mh.org"
             ],
             linkToId: (url) => {
-                const match = url.match(/manga\/([\w-]+)/);
+                const match = url.match(/manga\/([\\w-]+)/);
                 if (match) {
                     return match[1];
                 }
@@ -97,7 +107,7 @@ class GodaComicSource extends ComicSource {
                 const res = await Network.get(this.baseUrl, this.headers);
                 let match = res.body.match(/<script>window\.__INITIAL_STATE__=(.*?);<\/script>/) || res.body.match(/<script>window\.__NUXT__=(.*?);<\/script>/);
                 if (!match) {
-                    throw new Error("Could not find __INITIAL_STATE__ or __NUXT__ object");
+                    return [];
                 }
                 const data = JSON.parse(match[1]);
                 const homeData = data.home || data.state.data;
