@@ -28,7 +28,7 @@ class ManwaComicSource extends ComicSource {
     minAppVersion = "1.4.0"
 
     // update url
-    url = "https://github.com/g-assist/venera-configs/blob/main/manwa.js"
+    url = "https://github.com/Y-Ymeow/venera-configs/blob/main/manwa.js"
 
     /**
      * [Optional] init function
