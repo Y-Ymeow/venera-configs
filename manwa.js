@@ -128,110 +128,114 @@ class ManwaComicSource extends ComicSource {
         registerWebsite: null
     }
 
-    // explore page list
-    search = {
-        load: async (keyword, options, page) => {
-            let url;
-            if (keyword) {
-                url = `${this.baseUrl}/search?keyword=${encodeURIComponent(keyword)}&page=${page}`;
-            } else {
-                const params = new URLSearchParams();
-                const [status, type, area, sort, tagsJson] = options;
-                if (status) params.append('end', status);
-                if (type) params.append('gender', type);
-                if (area) params.append('area', area);
-                if (sort) params.append('sort', sort);
-                if (tagsJson) {
-                    const tags = JSON.parse(tagsJson);
-                    if (Array.isArray(tags) && tags.length > 0) {
-                        params.append('tag', tags.join(','));
+    get search() {
+        const source = this;
+        const tagOptions = (this.loadData('tag_list') || []).map(t => `${t.value}-${t.text}`);
+
+        return {
+            load: async (keyword, options, page) => {
+                let url;
+                if (keyword) {
+                    url = `${source.baseUrl}/search?keyword=${encodeURIComponent(keyword)}&page=${page}`;
+                } else {
+                    const params = new URLSearchParams();
+                    const [status, type, area, sort, tagsJson] = options;
+                    if (status) params.append('end', status);
+                    if (type) params.append('gender', type);
+                    if (area) params.append('area', area);
+                    if (sort) params.append('sort', sort);
+                    if (tagsJson) {
+                        const tags = JSON.parse(tagsJson);
+                        if (Array.isArray(tags) && tags.length > 0) {
+                            params.append('tag', tags.join(','));
+                        }
+                    }
+                    params.append('page', page);
+                    url = `${source.baseUrl}/booklist?${params.toString()}`;
+                }
+
+                const res = await Network.get(url);
+                const doc = new HtmlDocument(res.body);
+
+                if (!keyword) {
+                    const tags = doc.querySelectorAll('div.manga-filter-row.tags > a').map(a => ({
+                        text: a.text,
+                        value: a.attributes['data-val']
+                    }));
+                    if (tags.length > 0) {
+                        source.saveData('tag_list', tags);
                     }
                 }
-                params.append('page', page);
-                url = `${this.baseUrl}/booklist?${params.toString()}`;
-            }
 
-            const res = await Network.get(url);
-            const doc = new HtmlDocument(res.body);
-
-            if (!keyword) {
-                const tags = doc.querySelectorAll('div.manga-filter-row.tags > a').map(a => ({
-                    text: a.text,
-                    value: a.attributes['data-val']
-                }));
-                if (tags.length > 0) {
-                    this.saveData('tag_list', tags);
-                }
-            }
-
-            const comics = doc.querySelectorAll('ul.manga-list-2 > li, ul.book-list > li').map(li => {
-                const titleElement = li.querySelector('p.manga-list-2-title, p.book-list-info-title');
-                const linkElement = li.querySelector('a');
-                const imgElement = li.querySelector('img');
-                return new Comic({
-                    id: linkElement.attributes.href,
-                    title: titleElement.text,
-                    cover: imgElement.attributes.src || imgElement.attributes['data-original'],
+                const comics = doc.querySelectorAll('ul.manga-list-2 > li, ul.book-list > li').map(li => {
+                    const titleElement = li.querySelector('p.manga-list-2-title, p.book-list-info-title');
+                    const linkElement = li.querySelector('a');
+                    const imgElement = li.querySelector('img');
+                    return new Comic({
+                        id: linkElement.attributes.href,
+                        title: titleElement.text,
+                        cover: imgElement.attributes.src || imgElement.attributes['data-original'],
+                    });
                 });
-            });
 
-            const hasNext = doc.querySelector('ul.pagination2 > li:last-child')?.text === '下一页';
-            return {
-                comics: comics,
-                maxPage: hasNext ? page + 1 : page,
-            };
-        },
+                const hasNext = doc.querySelector('ul.pagination2 > li:last-child')?.text === '下一页';
+                return {
+                    comics: comics,
+                    maxPage: hasNext ? page + 1 : page,
+                };
+            },
 
-        optionList: [
-            {
-                label: "状态",
-                options: [
-                    '--全部',
-                    '2-连载中',
-                    '1-完结',
-                ],
-                default: '-',
-            },
-            {
-                label: "类型",
-                options: [
-                    '-1-全部',
-                    '2-一般向',
-                    '0-BL向',
-                    '1-禁漫',
-                    '3-TL向',
-                ],
-                default: '-1',
-            },
-            {
-                label: "地区",
-                options: [
-                    '--全部',
-                    '2-韩国',
-                    '3-日漫',
-                    '4-国漫',
-                    '5-台漫',
-                    '6-其他',
-                    '1-未分类',
-                ],
-                default: '-',
-            },
-            {
-                label: "排序",
-                options: [
-                    '-1-最新',
-                    '0-最旧',
-                    '1-收藏',
-                    '2-新漫',
-                ],
-                default: '-1',
-            },
-            {
-                label: "标签",
-                type: "multi-select",
-                options: () => (this.loadData('tag_list') || []).map(t => `${t.value}-${t.text}`),
-            },
-        ],
+            optionList: [
+                {
+                    label: "状态",
+                    options: [
+                        '--全部',
+                        '2-连载中',
+                        '1-完结',
+                    ],
+                    default: '-',
+                },
+                {
+                    label: "类型",
+                    options: [
+                        '-1-全部',
+                        '2-一般向',
+                        '0-BL向',
+                        '1-禁漫',
+                        '3-TL向',
+                    ],
+                    default: '-1',
+                },
+                {
+                    label: "地区",
+                    options: [
+                        '--全部',
+                        '2-韩国',
+                        '3-日漫',
+                        '4-国漫',
+                        '5-台漫',
+                        '6-其他',
+                        '1-未分类',
+                    ],
+                    default: '-',
+                },
+                {
+                    label: "排序",
+                    options: [
+                        '-1-最新',
+                        '0-最旧',
+                        '1-收藏',
+                        '2-新漫',
+                    ],
+                    default: '-1',
+                },
+                {
+                    label: "标签",
+                    type: "multi-select",
+                    options: tagOptions,
+                },
+            ],
+        }
     }
 
     // favorite related
@@ -363,211 +367,7 @@ class ManwaComicSource extends ComicSource {
         singleFolderForSingleComic: false,
     }
 
-    /// single comic related
-    comic = {
-        /**
-         * load comic info
-         * @param id {string}
-         * @returns {Promise<ComicDetails>}
-         */
-        loadInfo: async (id) => {
 
-        },
-        /**
-         * [Optional] load thumbnails of a comic
-         *
-         * To render a part of an image as thumbnail, return `${url}@x=${start}-${end}&y=${start}-${end}`
-         * - If width is not provided, use full width
-         * - If height is not provided, use full height
-         * @param id {string}
-         * @param next {string?} - next page token, null for first page
-         * @returns {Promise<{thumbnails: string[], next: string?}>} - `next` is next page token, null for no more
-         */
-        loadThumbnails: async (id, next) => {
-            /*
-            ```
-            let data = JSON.parse((await Network.get('...')).body)
-
-            return {
-                thumbnails: data.list,
-                next: next,
-            }
-            ```
-            */
-        },
-
-        /**
-         * rate a comic
-         * @param id
-         * @param rating {number} - [0-10] app use 5 stars, 1 rating = 0.5 stars,
-         * @returns {Promise<any>} - return any value to indicate success
-         */
-        starRating: async (id, rating) => {
-
-        },
-
-        /**
-         * load images of a chapter
-         * @param comicId {string}
-         * @param epId {string?}
-         * @returns {Promise<{images: string[]}>}
-         */
-        loadEp: async (comicId, epId) => {
-            /*
-            ```
-            return {
-                // string[]
-                images: images
-            }
-            ```
-            */
-        },
-        /**
-         * [Optional] provide configs for an image loading
-         * @param url
-         * @param comicId
-         * @param epId
-         * @returns {ImageLoadingConfig | Promise<ImageLoadingConfig>}
-         */
-        onImageLoad: (url, comicId, epId) => {
-            return {}
-        },
-        /**
-         * [Optional] provide configs for a thumbnail loading
-         * @param url {string}
-         * @returns {ImageLoadingConfig | Promise<ImageLoadingConfig>}
-         *
-         * `ImageLoadingConfig.modifyImage` and `ImageLoadingConfig.onLoadFailed` will be ignored.
-         * They are not supported for thumbnails.
-         */
-        onThumbnailLoad: (url) => {
-            return {}
-        },
-        /**
-         * [Optional] like or unlike a comic
-         * @param id {string}
-         * @param isLike {boolean} - true for like, false for unlike
-         * @returns {Promise<void>}
-         */
-        likeComic: async (id, isLike) =>  {
-
-        },
-        /**
-         * [Optional] load comments
-         *
-         * Since app version 1.0.6, rich text is supported in comments.
-         * Following html tags are supported: ['a', 'b', 'i', 'u', 's', 'br', 'span', 'img'].
-         * span tag supports style attribute, but only support font-weight, font-style, text-decoration.
-         * All images will be placed at the end of the comment.
-         * Auto link detection is enabled, but only http/https links are supported.
-         * @param comicId {string}
-         * @param subId {string?} - ComicDetails.subId
-         * @param page {number}
-         * @param replyTo {string?} - commentId to reply, not null when reply to a comment
-         * @returns {Promise<{comments: Comment[], maxPage: number?}>}
-         */
-        loadComments: async (comicId, subId, page, replyTo) => {
-            /*
-            ```
-            // ...
-
-            return {
-                comments: data.results.list.map(e => {
-                    return new Comment({
-                        // string
-                        userName: e.user_name,
-                        // string
-                        avatar: e.user_avatar,
-                        // string
-                        content: e.comment,
-                        // string?
-                        time: e.create_at,
-                        // number?
-                        replyCount: e.count,
-                        // string
-                        id: e.id,
-                    })
-                }),
-                // number
-                maxPage: data.results.maxPage,
-            }
-            ```
-            */
-        },
-        /**
-         * [Optional] send a comment, return any value to indicate success
-         * @param comicId {string}
-         * @param subId {string?} - ComicDetails.subId
-         * @param content {string}
-         * @param replyTo {string?} - commentId to reply, not null when reply to a comment
-         * @returns {Promise<any>}
-         */
-        sendComment: async (comicId, subId, content, replyTo) => {
-
-        },
-        /**
-         * [Optional] like or unlike a comment
-         * @param comicId {string}
-         * @param subId {string?} - ComicDetails.subId
-         * @param commentId {string}
-         * @param isLike {boolean} - true for like, false for unlike
-         * @returns {Promise<void>}
-         */
-        likeComment: async (comicId, subId, commentId, isLike) => {
-
-        },
-        /**
-         * [Optional] vote a comment
-         * @param id {string} - comicId
-         * @param subId {string?} - ComicDetails.subId
-         * @param commentId {string} - commentId
-         * @param isUp {boolean} - true for up, false for down
-         * @param isCancel {boolean} - true for cancel, false for vote
-         * @returns {Promise<number>} - new score
-         */
-        voteComment: async (id, subId, commentId, isUp, isCancel) => {
-
-        },
-        // {string?} - regex string, used to identify comic id from user input
-        idMatch: null,
-        /**
-         * [Optional] Handle tag click event
-         * @param namespace {string}
-         * @param tag {string}
-         * @returns {PageJumpTarget}
-         */
-        onClickTag: (namespace, tag) => {
-            /*
-            ```
-            return new PageJumpTarget({
-                page: 'search',
-                keyword: tag,
-            })
-            ```
-             */
-        },
-        /**
-         * [Optional] Handle links
-         */
-        link: {
-            /**
-             * set accepted domains
-             */
-            domains: [
-                'example.com'
-            ],
-            /**
-             * parse url to comic id
-             * @param url {string}
-             * @returns {string | null}
-             */
-            linkToId: (url) => {
-
-            }
-        },
-        // enable tags translate
-        enableTagsTranslate: false,
-    }
 
 
     /*
