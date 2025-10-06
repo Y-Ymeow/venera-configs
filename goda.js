@@ -5,7 +5,7 @@ class GodaComicSource extends ComicSource {
 
     key = "goda"
 
-    version = "2.0.0"
+    version = "2.1.0"
 
     minAppVersion = "1.4.0"
 
@@ -21,6 +21,20 @@ class GodaComicSource extends ComicSource {
         }
     }
 
+    parseCoverUrl(imgSrc) {
+        let url = imgSrc;
+        const urlMatch = url.match(/url=(.*)/);
+        if (urlMatch) {
+            url = decodeURIComponent(urlMatch[1]);
+        }
+        // Remove resizing parameters like &w=...&q=...
+        const resizeMatch = url.match(/^(.*?)&w=\d+&q=\d+$/);
+        if (resizeMatch) {
+            url = resizeMatch[1];
+        }
+        return url;
+    }
+
     comic = {
         loadInfo: async (slug) => {
             const comicRes = await Network.get(`${this.baseUrl}/manga/${slug}`, this.headers);
@@ -28,19 +42,20 @@ class GodaComicSource extends ComicSource {
             
             const mangaId = doc.querySelector('#mangachapters').attributes['data-mid'];
             const title = doc.querySelector('h1').text;
-            const cover = doc.querySelector('img.object-cover').attributes.src;
+            const cover = this.parseCoverUrl(doc.querySelector('img.object-cover').attributes.src);
             const description = doc.querySelector('p.text-medium').text;
             const tags = doc.querySelectorAll('div.flex.flex-wrap.gap-x-unit-xs a').map(a => a.text.replace('#', '').trim());
 
-            const chapterRes = await Network.get(`${this.baseUrl}/manga/get?mid=${mangaId}&mode=all`, this.headers);
-            const chapterDoc = new HtmlDocument(chapterRes.body);
-            const chapters = chapterDoc.querySelectorAll('.chapteritem').reverse().map(item => {
-                const a = item.querySelector('a');
-                return {
-                    id: `${slug}#${mangaId}/${a.attributes['data-cs']}`,
-                    title: a.attributes['data-ct'],
-                };
-            }).reduce((acc, ch) => {
+            // Fetch chapters from API (GoDaManhua.kt logic)
+            const res = await Network.get(`https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`, this.headers);
+            const json = JSON.parse(res.body);
+            const data = json.data;
+
+            const chapters = data.chapters.reverse().map(ch => ({
+                id: `${data.slug}/${ch.attributes.slug}#${data.id}/${ch.id}`,
+                title: ch.attributes.title,
+                time: new Date(ch.attributes.updatedAt).getTime(),
+            })).reduce((acc, ch) => {
                 acc[ch.id] = ch.title;
                 return acc;
             }, {});
@@ -58,13 +73,14 @@ class GodaComicSource extends ComicSource {
             const ids = epId.split('#');
             const mangaId = ids[1].split('/')[0];
             const chapterId = ids[1].split('/')[1];
-            const res = await Network.get(`${this.baseUrl}/chapter/getcontent?m=${mangaId}&c=${chapterId}`, this.headers);
-            const doc = new HtmlDocument(res.body);
-            const images = doc.querySelectorAll('#chapcontent > div > img').map(img => img.attributes['data-src'] || img.attributes.src);
+            // Fetch page list from API (GoDaManhua.kt logic)
+            const res = await Network.get(`https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}`, this.headers);
+            const json = JSON.parse(res.body);
+            const images = json.data.info.images.images.map(img => `https://f40-1-4.g-mh.online${img.url}`);
             return { images };
         },
         
-        idMatch: 'manga/([\\w-]+)',
+        idMatch: 'manga/([\w-]+)'
 
         link: {
             domains: [
@@ -82,28 +98,7 @@ class GodaComicSource extends ComicSource {
 
     explore = [
         {
-            title: "Popular",
-            type: "multiPageComicList",
-            load: async (page) => {
-                const res = await Network.get(`${this.baseUrl}/hots/page/${page}`, this.headers);
-                const doc = new HtmlDocument(res.body);
-                const comics = doc.querySelectorAll('.container > .cardlist .pb-2 a').map(a => {
-                    const img = a.querySelector('img');
-                    return new Comic({
-                        id: a.attributes.href.split('/').pop(),
-                        title: a.querySelector('h3').text,
-                        cover: img.attributes.src,
-                    });
-                });
-                const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
-                return {
-                    comics: comics,
-                    maxPage: hasNextPage ? page + 1 : page,
-                };
-            },
-        },
-        {
-            title: "Latest",
+            title: "GoDa",
             type: "multiPageComicList",
             load: async (page) => {
                 const res = await Network.get(`${this.baseUrl}/newss/page/${page}`, this.headers);
@@ -113,7 +108,7 @@ class GodaComicSource extends ComicSource {
                     return new Comic({
                         id: a.attributes.href.split('/').pop(),
                         title: a.querySelector('h3').text,
-                        cover: img.attributes.src,
+                        cover: this.parseCoverUrl(img.attributes.src),
                     });
                 });
                 const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
@@ -134,7 +129,7 @@ class GodaComicSource extends ComicSource {
                 return new Comic({
                     id: a.attributes.href.split('/').pop(),
                     title: a.querySelector('h3').text,
-                    cover: img.attributes.src,
+                    cover: this.parseCoverUrl(img.attributes.src),
                 });
             });
             const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
@@ -210,7 +205,7 @@ class GodaComicSource extends ComicSource {
                 return new Comic({
                     id: a.attributes.href.split('/').pop(),
                     title: a.querySelector('h3').text,
-                    cover: img.attributes.src,
+                    cover: this.parseCoverUrl(img.attributes.src),
                 });
             });
             const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
