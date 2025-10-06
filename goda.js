@@ -5,71 +5,73 @@ class GodaComicSource extends ComicSource {
 
     key = "goda"
 
-    version = "1.0.0"
+    version = "2.0.0"
 
     minAppVersion = "1.4.0"
 
     url = "https://github.com/Y-Ymeow/venera-configs/blob/main/goda.js"
 
     get baseUrl() {
-        return this.loadSetting('mirror') || 'https://baozimh.org';
+        return this.loadSetting('mirror') || 'https://g-mh.org';
     }
 
     get headers() {
         return {
             "Referer": `${this.baseUrl}/`,
-            "Origin": this.baseUrl,
         }
     }
 
     comic = {
         loadInfo: async (slug) => {
-            const res = await Network.get(`https://api-get-v3.mgsearcher.com/api/manga/get?slug=${slug}&mode=all`, this.headers);
-            const json = JSON.parse(res.body);
+            const comicRes = await Network.get(`${this.baseUrl}/manga/${slug}`, this.headers);
+            const doc = new HtmlDocument(comicRes.body);
+            
+            const mangaId = doc.querySelector('#mangachapters').attributes['data-mid'];
+            const title = doc.querySelector('h1').text;
+            const cover = doc.querySelector('img.object-cover').attributes.src;
+            const description = doc.querySelector('p.text-medium').text;
+            const tags = doc.querySelectorAll('div.flex.flex-wrap.gap-x-unit-xs a').map(a => a.text.replace('#', '').trim());
 
-            if (json.code !== 200) {
-                throw new Error(`Failed to fetch comic info: ${json.message}`);
-            }
-
-            const data = json.data;
-            const chapters = data.chapters.reverse().map(ch => ({
-                id: `${data.slug}/${ch.attributes.slug}#${data.id}/${ch.id}`,
-                title: ch.attributes.title,
-                time: new Date(ch.attributes.updatedAt).getTime(),
-            })).reduce((acc, ch) => {
+            const chapterRes = await Network.get(`${this.baseUrl}/manga/get?mid=${mangaId}&mode=all`, this.headers);
+            const chapterDoc = new HtmlDocument(chapterRes.body);
+            const chapters = chapterDoc.querySelectorAll('.chapteritem').reverse().map(item => {
+                const a = item.querySelector('a');
+                return {
+                    id: `${slug}#${mangaId}/${a.attributes['data-cs']}`,
+                    title: a.attributes['data-ct'],
+                };
+            }).reduce((acc, ch) => {
                 acc[ch.id] = ch.title;
                 return acc;
             }, {});
 
-            const tags = data.tagsM.data.map(t => t.attributes.name);
-
             return new ComicDetails({
-                title: data.title,
-                cover: data.cover,
-                description: data.desc,
+                title: title,
+                cover: cover,
+                description: description,
                 tags: { "Tags": tags },
                 chapters: chapters,
             });
         },
 
         loadEp: async (comicId, epId) => {
-            const ids = epId.split('#')[1].split('/');
-            const mId = ids[0];
-            const cId = ids[1];
-            const res = await Network.get(`https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mId}&c=${cId}`, this.headers);
-            const json = JSON.parse(res.body);
-            const images = json.data.info.images.images.map(img => `https://f40-1-4.g-mh.online${img.url}`);
+            const ids = epId.split('#');
+            const mangaId = ids[1].split('/')[0];
+            const chapterId = ids[1].split('/')[1];
+            const res = await Network.get(`${this.baseUrl}/chapter/getcontent?m=${mangaId}&c=${chapterId}`, this.headers);
+            const doc = new HtmlDocument(res.body);
+            const images = doc.querySelectorAll('#chapcontent > div > img').map(img => img.attributes['data-src'] || img.attributes.src);
             return { images };
         },
         
-        idMatch: 'manga/([\w-]+)',
+        idMatch: 'manga/([\\w-]+)',
 
         link: {
             domains: [
                 "baozimh.org", "godamh.com", "m.baozimh.one", "bzmh.org", "g-mh.org", "m.g-mh.org"
             ],
             linkToId: (url) => {
-                const match = url.match(/manga\/([\w-]+)/);
+                const match = url.match(/manga\/([\\w-]+)/);
                 if (match) {
                     return match[1];
                 }
@@ -80,63 +82,65 @@ class GodaComicSource extends ComicSource {
 
     explore = [
         {
-            title: "Home",
-            type: "multiPartPage",
+            title: "Popular",
+            type: "multiPageComicList",
             load: async (page) => {
-                // This is likely to fail, but we leave it for now.
-                const res = await Network.get(this.baseUrl, this.headers);
-                let match = res.body.match(/<script>window\.__INITIAL_STATE__=(.*?);<\/script>/) || res.body.match(/<script>window\.__NUXT__=(.*?);<\/script>/);
-                if (!match) {
-                    return [];
-                }
-                const data = JSON.parse(match[1]);
-                const homeData = data.home || data.state.data;
-                const hotComics = homeData.hot.map(comic => new Comic({
-                    id: comic.id, // This is the slug
-                    title: comic.name,
-                    cover: comic.cover,
-                }));
-                const latestComics = homeData.latest.map(comic => new Comic({
-                    id: comic.id, // This is the slug
-                    title: comic.name,
-                    cover: comic.cover,
-                }));
-                return [
-                    { title: "Popular", comics: hotComics },
-                    { title: "Latest", comics: latestComics },
-                ];
+                const res = await Network.get(`${this.baseUrl}/hots/page/${page}`, this.headers);
+                const doc = new HtmlDocument(res.body);
+                const comics = doc.querySelectorAll('.container > .cardlist .pb-2 a').map(a => {
+                    const img = a.querySelector('img');
+                    return new Comic({
+                        id: a.attributes.href.split('/').pop(),
+                        title: a.querySelector('h3').text,
+                        cover: img.attributes.src,
+                    });
+                });
+                const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
+                return {
+                    comics: comics,
+                    maxPage: hasNextPage ? page + 1 : page,
+                };
+            },
+        },
+        {
+            title: "Latest",
+            type: "multiPageComicList",
+            load: async (page) => {
+                const res = await Network.get(`${this.baseUrl}/newss/page/${page}`, this.headers);
+                const doc = new HtmlDocument(res.body);
+                const comics = doc.querySelectorAll('.container > .cardlist .pb-2 a').map(a => {
+                    const img = a.querySelector('img');
+                    return new Comic({
+                        id: a.attributes.href.split('/').pop(),
+                        title: a.querySelector('h3').text,
+                        cover: img.attributes.src,
+                    });
+                });
+                const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
+                return {
+                    comics: comics,
+                    maxPage: hasNextPage ? page + 1 : page,
+                };
             },
         }
     ]
 
     search = {
         load: async (keyword, options, page) => {
-            const res = await Network.get(`${this.baseUrl}/search?q=${encodeURIComponent(keyword)}&p=${page}`, this.headers);
+            const res = await Network.get(`${this.baseUrl}/s/${encodeURIComponent(keyword)}?page=${page}`, this.headers);
             const doc = new HtmlDocument(res.body);
-            const comics = doc.querySelectorAll('div.comics-grid > div.comics-card').map(div => {
-                const a = div.querySelector('a');
-                const img = div.querySelector('a > div.card-image-container > img');
-                const title = div.querySelector('a > h2.card-title');
-                const id = a.attributes.href.split('/').pop();
+            const comics = doc.querySelectorAll('.container > .cardlist .pb-2 a').map(a => {
+                const img = a.querySelector('img');
                 return new Comic({
-                    id: id,
-                    title: title.text,
+                    id: a.attributes.href.split('/').pop(),
+                    title: a.querySelector('h3').text,
                     cover: img.attributes.src,
                 });
             });
-            const pageLinks = doc.querySelectorAll('ul.pagination li a');
-            let maxPage = page;
-            if (pageLinks.length > 0) {
-                const lastPageText = pageLinks[pageLinks.length - 1].text;
-                if (lastPageText === '>') {
-                    maxPage = page + 1;
-                } else {
-                    maxPage = parseInt(lastPageText);
-                }
-            }
+            const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
             return {
                 comics: comics,
-                maxPage: maxPage,
+                maxPage: hasNextPage ? page + 1 : page,
             };
         }
     }
@@ -198,33 +202,21 @@ class GodaComicSource extends ComicSource {
     categoryComics = {
         load: async (category, param, options, page) => {
             const [type, id] = category.split('-');
-            const url = `${this.baseUrl}/manga-${type}/${id}?page=${page}`;
+            const url = `${this.baseUrl}/manga-${type}/${id}/page/${page}`;
             const res = await Network.get(url, this.headers);
             const doc = new HtmlDocument(res.body);
-            const comics = doc.querySelectorAll('div.comics-grid > div.comics-card').map(div => {
-                const a = div.querySelector('a');
-                const img = div.querySelector('a > div.card-image-container > img');
-                const title = div.querySelector('a > h2.card-title');
-                const slug = a.attributes.href.split('/').pop();
+            const comics = doc.querySelectorAll('.container > .cardlist .pb-2 a').map(a => {
+                const img = a.querySelector('img');
                 return new Comic({
-                    id: slug,
-                    title: title.text,
+                    id: a.attributes.href.split('/').pop(),
+                    title: a.querySelector('h3').text,
                     cover: img.attributes.src,
                 });
             });
-            const pageLinks = doc.querySelectorAll('ul.pagination li a');
-            let maxPage = page;
-            if (pageLinks.length > 0) {
-                const lastPageText = pageLinks[pageLinks.length - 1].text;
-                if (lastPageText === '>') {
-                    maxPage = page + 1;
-                } else {
-                    maxPage = parseInt(lastPageText);
-                }
-            }
+            const hasNextPage = doc.querySelector('a[aria-label=下一頁] button') != null;
             return {
                 comics: comics,
-                maxPage: maxPage,
+                maxPage: hasNextPage ? page + 1 : page,
             };
         }
     }
