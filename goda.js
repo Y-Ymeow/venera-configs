@@ -2,9 +2,10 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.1.0";
+  version = "1.1.1";
   minAppVersion = "1.0.0";
-  url = "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
+  url =
+    "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
 
   ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";

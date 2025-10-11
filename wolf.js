@@ -2,9 +2,10 @@ class WolfComicSource extends ComicSource {
   // Required metadata
   name = "늑대닷컴";
   key = "wolf_comics";
-  version = "1.2.2";
+  version = "1.2.3";
   minAppVersion = "1.0.0";
-  url = "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/wolf.js";
+  url =
+    "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/wolf.js";
 
   // Class properties
   domainNumber = 0;

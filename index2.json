@@ -120,24 +120,24 @@
     "name": "漫蛙",
     "fileName": "manwa.js",
     "key": "manwa",
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   {
     "name": "Manhwa 18 CC",
     "fileName": "manhwa18cc.js",
     "key": "manhwa18cc",
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   {
     "name": "늑대닷컴",
     "fileName": "wolf.js",
     "key": "wolf",
-    "version": "1.2.2"
+    "version": "1.2.3"
   },
   {
     "name": "Goda",
     "fileName": "goda.js",
     "key": "goda",
-    "version": "1.1.0"
+    "version": "1.1.1"
   }
 ]

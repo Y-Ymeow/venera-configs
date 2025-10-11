@@ -2,11 +2,11 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.1";
+  version = "1.0.2";
   minAppVersion = "1.4.0";
 
   url =
-    "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manwa.js";
+    "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manwa.js";
 
   static ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
