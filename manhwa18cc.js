@@ -4,7 +4,8 @@ class Manhwa18cc extends ComicSource {
   key = "manhwa18cc";
   version = "1.0.0";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
-  url = "https://github.com/Y-Ymeow/venera-configs/raw/main/manhwa18cc.js";
+  url =
+    "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
 
   ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";

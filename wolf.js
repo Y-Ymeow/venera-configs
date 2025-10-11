@@ -4,7 +4,7 @@ class WolfComicSource extends ComicSource {
   key = "wolf_comics";
   version = "1.2.2";
   minAppVersion = "1.0.0";
-  url = "https://github.com/Y-Ymeow/venera-configs/raw/main/wolf.js";
+  url = "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/wolf.js";
 
   // Class properties
   domainNumber = 0;

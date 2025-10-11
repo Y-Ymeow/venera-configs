@@ -4,7 +4,7 @@ class Goda extends ComicSource {
   key = "goda";
   version = "1.1.0";
   minAppVersion = "1.0.0";
-  url = "https://github.com/Y-Ymeow/venera-configs/raw/main/goda.js";
+  url = "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
 
   ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
