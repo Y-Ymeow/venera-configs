@@ -2,3 +2,8 @@
 .vscode
 test/
 other-app-source-code/
+QWEN.md
+GEMINI.md
+download-*
+.opencode
+gen-map.js
