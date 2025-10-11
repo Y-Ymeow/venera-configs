@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.0";
+  version = "1.0.1";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -83,45 +83,6 @@ class Manhwa18cc extends ComicSource {
       },
     },
   ];
-
-  category = {
-    title: "分类",
-    parts: [
-      {
-        name: "类型",
-        type: "fixed",
-        categories: [
-          {
-            label: "所有",
-            target: {
-              page: "category",
-              attributes: {
-                category: "",
-                param: null,
-              },
-            },
-          },
-        ],
-      },
-    ],
-    enableRankingPage: false,
-  };
-
-  categoryComics = {
-    load: async (category, param, options, page) => {
-      // 加载特定分类下的漫画列表
-      return {
-        comics: [],
-        maxPage: 1,
-      };
-    },
-    optionList: [
-      {
-        label: "排序",
-        options: ["newToOld-最新", "oldToNew-最旧"],
-      },
-    ],
-  };
 
   search = {
     optionList: [],
