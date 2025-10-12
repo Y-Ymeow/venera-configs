@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.1.1";
+  version = "1.2.1";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -200,8 +200,6 @@ class Goda extends ComicSource {
               },
             });
           }
-
-          console.warn(categories);
 
           return categories;
         },
@@ -477,7 +475,7 @@ class Goda extends ComicSource {
     loadInfo: async (mangaUrl) => {
       const baseUrl = this.getBaseUrl();
 
-      // First, we need to get the manga ID from the manga page
+      // Get the manga page
       const mangaPageRes = await Network.get(`${baseUrl}/manga/${mangaUrl}`, {
         headers: {
           Referer: `${baseUrl}/`,
@@ -492,88 +490,173 @@ class Goda extends ComicSource {
       const html = mangaPageRes.body;
       const doc = new HtmlDocument(html);
 
-      // Extract manga ID from the page
-      const mangaIdElement = doc.querySelector("#mangachapters");
-      if (!mangaIdElement) {
-        throw new Error("Could not extract manga ID from the page");
-      }
-      const mangaId = mangaIdElement.attributes["data-mid"];
-
-      // Now, get detailed manga info via the API
-      const apiRes = await fetch(
-        `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`,
-        {
-          headers: {
-            Referer: `${baseUrl}/`,
-            "User-Agent": this.ua,
-          },
-        },
+      // Extract cover
+      let cover = "";
+      const coverElement = doc.querySelector(
+        'div[style*="background-image:url"] img, .aspect-3-4 img',
       );
-
-      if (apiRes.status !== 200) {
-        throw new Error(
-          `Failed to load manga details from API: ${apiRes.status}`,
+      if (coverElement) {
+        cover =
+          coverElement.attributes["src"] ||
+          coverElement.attributes["data-src"] ||
+          "";
+      } else {
+        // Try to get the cover from the background style
+        const coverDiv = doc.querySelector(
+          'div[style*="background-image:url"]',
         );
+        if (coverDiv) {
+          const style = coverDiv.attributes["style"];
+          const match = style.match(
+            /background-image:url\(['"]?([^'"]*?)['"]?\)/,
+          );
+          if (match && match[1]) {
+            cover = match[1];
+          }
+        }
       }
 
-      const apiJson = await apiRes.json();
-      const mangaInfo = apiJson.data;
+      // Extract title
+      const titleElement = doc.querySelector("h1");
+      let title = titleElement ? titleElement.text.trim() : "Unknown Title";
 
-      const detailsContainer = doc.querySelector("#info .block");
       // Extract author
-      const authorElement = detailsContainer.children[1];
-      let author = [];
-      if (authorElement) {
-        author = Array.from(authorElement.children)
-          .slice(1)
-          .map((child) => child.text.replace(" ,", "").trim());
+      const authorElement = doc.querySelector('a[href*="/manga-author/"]');
+      const author = authorElement ? [authorElement.text.trim()] : [];
+
+      // Extract status
+      const statusSpans = doc.querySelectorAll("h1 span");
+
+      let status = [];
+      for (const span of statusSpans) {
+        if (
+          span.text.includes("連載") ||
+          span.text.includes("完結") ||
+          span.text.includes("休刊")
+        ) {
+          title = title.replace(span.text, "");
+          status = [span.text.trim()];
+          break;
+        }
       }
 
-      // Parse API response for chapters
-      // Based on the Kotlin code, the API returns HTML content that we need to parse
+      // Extract genres/tags
+      const genres = [];
+      const genreElements = doc.querySelectorAll('a[href*="/manga-tag/"]');
+      for (const genreElement of genreElements) {
+        genres.push(genreElement.text.trim());
+      }
 
-      const statusArray = ["連載中", "完結", "停止更新", "休刊"];
-      const id = mangaInfo.id;
-      const cover = mangaInfo.cover;
-      const title = mangaInfo.title;
-      const description = mangaInfo.desc;
-      const status = statusArray[mangaInfo.status] || "UNKNOWN";
-      const genres = mangaInfo.tagsM.data.map((data) => {
-        return data.attributes.name;
-      });
+      // Extract description
+      const descElement = doc.querySelector("p.line-clamp-4");
+      const description = descElement ? descElement.text.trim() : "";
 
-      const chapterElements = mangaInfo.chapters;
+      // Extract manga ID from the page for API call
+      const mangaIdElement = doc.querySelector("#mangachapters, #chaplistlast");
+      let mangaId = null;
+      if (mangaIdElement) {
+        mangaId = mangaIdElement.attributes["data-mid"];
+      }
+
+      // If we couldn't get the manga ID from the page, try other selectors
+      if (!mangaId) {
+        const bookmarkData = doc.querySelector("#bookmarkData");
+        if (bookmarkData) {
+          mangaId = bookmarkData.attributes["data-mid"];
+        }
+      }
+
+      // Get detailed chapter info from API using the manga ID
       const chapters = new Map();
+      if (mangaId) {
+        const apiRes = await fetch(
+          `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`,
+          {
+            headers: {
+              Referer: `${baseUrl}/`,
+              Origin: `${baseUrl}/`,
+              Connection: "keep-alive",
+              "Sec-GPC": 1,
+              "User-Agent": this.ua,
+              Pragma: "no-cache",
+            },
+          },
+        );
 
-      chapterElements.map((data) => {
-        chapters.set(data.id + "/" + id, data.attributes.title);
-      });
+        if (apiRes.status === 200) {
+          const apiJson = await apiRes.json();
+          title = apiJson.data.title;
+          const apiChapters = apiJson.data?.chapters;
+
+          if (apiChapters) {
+            // The API returns chapters as an indexed object
+            for (const key in apiChapters) {
+              if (apiChapters.hasOwnProperty(key)) {
+                const chapterData = apiChapters[key];
+                const chapterId = chapterData.id;
+                const chapterTitle = chapterData.attributes.title;
+                // Use chapterId/mangaId format to maintain consistency
+                chapters.set(`${chapterId}/${mangaId}`, chapterTitle);
+              }
+            }
+          }
+        }
+      } else {
+        // Fallback to extracting chapters from the HTML if we couldn't get manga ID for API
+        const chapterElements = doc.querySelectorAll(
+          "#mangachapters a, .chapteritem a",
+        );
+        for (const chapterElement of chapterElements) {
+          const chapterTitle = chapterElement.text.trim();
+          const chapterUrl = chapterElement.attributes["href"];
+          if (chapterTitle && chapterUrl) {
+            // Extract chapter ID from URL - it's in format /manga/{slug}/{chapter-id}
+            const urlParts = chapterUrl.split("/");
+            if (urlParts.length >= 4) {
+              const chapterId = urlParts[3];
+              if (chapterId) {
+                // Use mangaUrl/chapterId as the chapter ID to maintain consistency
+                chapters.set(`${chapterId}/${mangaUrl}`, chapterTitle);
+              }
+            }
+          }
+        }
+      }
 
       // Create ComicDetails
       const details = new ComicDetails({
-        id,
+        id: mangaUrl, // Using mangaUrl as the ID since we're not using API
         title,
         cover,
         description,
         tags: {
           作者: author,
-          状态: [status],
+          状态: status,
           标签: genres,
         },
-        chapters: chapters, // Include the chapters in the ComicDetails response
+        chapters: chapters,
       });
 
       return details;
     },
 
     loadEp: async (comicId, epId) => {
-      const [epRealId, comicRealId] = epId.split("/");
+      const baseUrl = this.getBaseUrl();
+
+      // Extract chapter ID from epId (format is chapterId/mangaId)
+      const [chapterId, mangaId] = epId.split("/");
+
+      // Use the API to get chapter info
       const apiRes = await fetch(
-        `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${comicRealId}&c=${epRealId}`,
+        `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}`,
         {
           headers: {
-            Referer: `${this.getBaseUrl()}/`,
+            Referer: `${baseUrl}/`,
+            Origin: `${baseUrl}/`,
+            Connection: "keep-alive",
+            "Sec-GPC": 1,
             "User-Agent": this.ua,
+            Pragma: "no-cache",
           },
         },
       );

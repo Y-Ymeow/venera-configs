@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.2";
+  version = "1.0.3";
   minAppVersion = "1.4.0";
 
   url =
@@ -280,9 +280,6 @@ class Manwa extends ComicSource {
         chapters.set(chapterId, name);
       });
 
-      // Reverse the chapters order to show latest first
-      const reversedChapters = new Map([...chapters].reverse());
-
       return new ComicDetails({
         title: title,
         cover: cover,
@@ -292,7 +289,7 @@ class Manwa extends ComicSource {
           状态: [status],
           标签: tags,
         },
-        chapters: reversedChapters,
+        chapters: chapters,
       });
     },
 
@@ -363,8 +360,10 @@ class Manwa extends ComicSource {
         return {
           url: url,
           headers: {
-            Referer: this.domain,
+            Referer: this.domain + "/",
+            Origin: this.domain,
             "User-Agent": Manwa.ua,
+            "Sec-GPC": 1,
             Pragma: "no-cache",
           },
           onResponse: (data) => {
