@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.1";
+  version = "1.0.2";
 
   minAppVersion = "1.4.0";
 
@@ -233,6 +233,8 @@ class ManhwaRawComicSource extends ComicSource {
           attrs["src"] ||
           attrs["data-cfsrc"];
       }
+
+      cover = cover.replace("awi.", "");
 
       // Parse author
       let authorElements = document.querySelectorAll(

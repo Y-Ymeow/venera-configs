@@ -145,5 +145,11 @@
     "fileName": "manhwa_raw.js",
     "key": "manhwa_raw",
     "version": "1.0.1"
+  },
+  {
+    "name": "Webtoon",
+    "fileName": "webtoon.js",
+    "key": "webtoon",
+    "version": "1.0.0"
   }
 ]
