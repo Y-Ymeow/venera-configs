@@ -343,8 +343,6 @@ class ManhwaRawComicSource extends ComicSource {
         images.push(el.attributes["data-src"].trim());
       });
 
-      console.warn([images, imageElements]);
-
       return {
         images: images,
       };
