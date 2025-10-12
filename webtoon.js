@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.0";
+  version = "1.0.1";
 
   minAppVersion = "1.4.0";
 
@@ -1089,78 +1089,6 @@ class WebtoonComicSource extends ComicSource {
         {
           value: "zh-hant",
           text: "繁體中文",
-        },
-        {
-          value: "zh-hans",
-          text: "简体中文",
-        },
-        {
-          value: "th",
-          text: "ไทย",
-        },
-        {
-          value: "ja",
-          text: "日本語",
-        },
-        {
-          value: "fr",
-          text: "Français",
-        },
-        {
-          value: "de",
-          text: "Deutsch",
-        },
-        {
-          value: "es",
-          text: "Español",
-        },
-        {
-          value: "pt",
-          text: "Português",
-        },
-        {
-          value: "it",
-          text: "Italiano",
-        },
-        {
-          value: "ru",
-          text: "Русский",
-        },
-        {
-          value: "tl",
-          text: "Filipino",
-        },
-        {
-          value: "id",
-          text: "Indonesia",
-        },
-        {
-          value: "tr",
-          text: "Türkçe",
-        },
-        {
-          value: "vi",
-          text: "Tiếng Việt",
-        },
-        {
-          value: "ms",
-          text: "Melayu",
-        },
-        {
-          value: "ar",
-          text: "العربية",
-        },
-        {
-          value: "hi",
-          text: "हिन्दी",
-        },
-        {
-          value: "bn",
-          text: "বাংলা",
-        },
-        {
-          value: "ko",
-          text: "한국어",
         },
       ],
       default: "en",

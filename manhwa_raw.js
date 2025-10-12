@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.3";
+  version = "1.0.4";
 
   minAppVersion = "1.4.0";
 
@@ -222,7 +222,7 @@ class ManhwaRawComicSource extends ComicSource {
       );
 
       let title = titleElement.text.replace(">> MANHWA", "");
-      title.querySelectorAll("span").map((e) => {
+      titleElement.querySelectorAll("span").map((e) => {
         title = title.replace(e.text, "");
       });
       title = title.trim();
