@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.2";
+  version = "1.0.3";
 
   minAppVersion = "1.4.0";
 
@@ -220,7 +220,12 @@ class ManhwaRawComicSource extends ComicSource {
       let titleElement = document.querySelector(
         "div.post-title h3, div.post-title h1, #manga-title > h1",
       );
-      let title = titleElement.text.trim().replace(" >> MANHWA", "");
+
+      let title = titleElement.text.replace(">> MANHWA", "");
+      title.querySelectorAll("span").map((e) => {
+        title = title.replace(e.text, "");
+      });
+      title = title.trim();
 
       // Parse cover image
       let coverElement = document.querySelector("div.summary_image img");
