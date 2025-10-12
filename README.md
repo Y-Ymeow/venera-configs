@@ -23,7 +23,7 @@ https://raw.githubusercontent.com/Y-Ymeow/venera-configs/refs/heads/main/index2.
 - 仓库每天自动同步源仓库，确保源列表保持最新
 - 如访问速度较慢，可使用 [gh-proxy](https://ghproxy.com/) 加速：
   ```
-  https://ghproxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/refs/heads/main/index2.json
+  https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/refs/heads/main/index2.json
   ```
 
 ## 创建新配置
