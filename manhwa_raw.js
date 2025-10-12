@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.0";
+  version = "1.0.1";
 
   minAppVersion = "1.4.0";
 
@@ -250,10 +250,10 @@ class ManhwaRawComicSource extends ComicSource {
         "No description available";
 
       // Parse status
-      let statusElement = document.querySelector(
+      let statusElement = document.querySelectorAll(
         ".profile-manga div.summary-content",
       )[7];
-      let statusText = statusElement?.text.trim() || "OnGoing";
+      let statusText = statusElement?.text.trim() || "Unknown";
 
       // Parse genres
       let genreElements = document.querySelectorAll("div.genres-content a");
