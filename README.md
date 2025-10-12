@@ -2,25 +2,7 @@
 
 Configuration file repository for venera
 
-## 已包含漫画源
-- 拷贝漫画
-- Komiic
-- 包子漫画
-- Picacg
-- nhentai
-- 紳士漫畫
-- ehentai
-- 禁漫天堂
-- MangaDex
-- 爱看漫
-- 少年ジャンプ＋
-- hitomi.la
-- comick
-- 优酷漫画
-- 再漫画
-- 漫画柜
-- 漫蛙吧
-- Lanraragi
+## 已包含源仓库漫画源
 
 ## 此为此仓库新增
 - 漫蛙
