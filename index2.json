@@ -139,5 +139,11 @@
     "fileName": "goda.js",
     "key": "goda",
     "version": "1.2.1"
+  },
+  {
+    "name": "Manhwa Raw",
+    "fileName": "manhwa_raw.js",
+    "key": "manhwa_raw",
+    "version": "1.0.0"
   }
 ]
