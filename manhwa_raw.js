@@ -253,7 +253,7 @@ class ManhwaRawComicSource extends ComicSource {
       let statusElement = document.querySelector(
         ".profile-manga div.summary-content",
       )[7];
-      let statusText = statusElement.text.trim();
+      let statusText = statusElement?.text.trim() || "OnGoing";
 
       // Parse genres
       let genreElements = document.querySelectorAll("div.genres-content a");
