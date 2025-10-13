@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.5";
+  version = "1.0.6";
 
   minAppVersion = "1.4.0";
 
@@ -26,9 +26,43 @@ class ManhwaRawComicSource extends ComicSource {
    */
   init() {}
 
+  /**
+   * Extracts the manga slug from a URL like https://manhwa-raw.com/manga/love-motion-capture/
+   * @param {string} url
+   * @returns {string}
+   */
+  extractMangaSlug(url) {
+    const trimmedUrl = url.trim().replace(/^\/+|\/+$/g, "");
+    const parts = trimmedUrl.split("/");
+    return parts[parts.length - 1];
+  }
+
+  /**
+   * Extracts the chapter number from a URL like https://manhwa-raw.com/manga/love-motion-capture/chapter-38/
+   * Supports formats like chapter-38, chapter-38.5, chapter-38a, chapter-38-b, chapter-38-5, etc.
+   * @param {string} url
+   * @returns {string}
+   */
+  extractChapterNumber(url) {
+    const match = url.match(/chapter-([\d.-]+[a-zA-Z-]*)/);
+    return match ? `chapter-${match[1]}` : "";
+  }
+
+  /**
+   * Generates a manga URL from a slug
+   * @param {string} slug
+   * @returns {string}
+   */
+  generateMangaUrl(slug, chapter = null) {
+    if (chapter) {
+      return `${this.domain}/manga/${slug}/${chapter}/`;
+    }
+    return `${this.domain}/manga/${slug}/`;
+  }
+
   parseComicEx(element) {
     let linkElement = element.querySelector(".post-title a");
-    let id = linkElement.attributes["href"];
+    let id = this.extractMangaSlug(linkElement.attributes["href"]);
     let title = linkElement.text;
     let coverElement = element.querySelector("img");
     let cover = null;
@@ -125,7 +159,9 @@ class ManhwaRawComicSource extends ComicSource {
         let linkElement =
           element.querySelector("div.c-tabs-item__content a, .manga__item a") ||
           element.querySelector("div.post-title a");
-        let id = linkElement ? linkElement.attributes["href"] : undefined;
+        let id = linkElement
+          ? this.extractMangaSlug(linkElement.attributes["href"])
+          : undefined;
         let titleElement = element.querySelector("div.post-title a");
         let imgElement = element.querySelector("img");
         let title =
@@ -209,7 +245,11 @@ class ManhwaRawComicSource extends ComicSource {
      * @returns {Promise<ComicDetails>}
      */
     loadInfo: async (id) => {
-      let res = await Network.get(id);
+      let res = await Network.get(this.generateMangaUrl(id), {
+        headers: {
+          "User-Agent": this.ua,
+        },
+      });
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }
@@ -313,7 +353,7 @@ class ManhwaRawComicSource extends ComicSource {
           let chapterTitle = chapterLinkElement.text.trim();
 
           return {
-            id: chapterUrl,
+            id: this.extractChapterNumber(chapterUrl),
             title: chapterTitle,
           };
         })
@@ -362,7 +402,11 @@ class ManhwaRawComicSource extends ComicSource {
      */
     loadEp: async (comicId, epId) => {
       let chapterId = epId || comicId; // Use epId if provided, otherwise use comicId
-      let res = await Network.get(chapterId);
+      let res = await Network.get(this.generateMangaUrl(comicId, chapterId), {
+        headers: {
+          "User-Agent": this.ua,
+        },
+      });
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }

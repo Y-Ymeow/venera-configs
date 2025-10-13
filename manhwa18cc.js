@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.4";
+  version = "1.0.5";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -256,6 +256,7 @@ class Manhwa18cc extends ComicSource {
       }
 
       return new ComicDetails({
+        id: comicId,
         title: title,
         subtitle,
         description: description,

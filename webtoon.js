@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.1";
+  version = "1.0.2";
 
   minAppVersion = "1.4.0";
 
@@ -15,6 +15,54 @@ class WebtoonComicSource extends ComicSource {
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/webtoon.js";
 
+  /**
+   * 提取Webtoon URL中的路径和title_no
+   * @param {string} url - Webtoon URL字符串
+   * @returns {string} - 格式化后的路径和title_no字符串，格式为"path:titleNo"
+   */
+  extractWebtoonPathAndId(url) {
+    // 提取host和list/viewer之间的路径
+    const pathMatch = url.match(/\/([^\/]+)\/([^\/]+)\/(list|viewer)/i);
+    if (!pathMatch) {
+      throw new Error("无法从URL中提取路径");
+    }
+    const path = `${pathMatch[1]}/${pathMatch[2]}`;
+
+    // 提取title_no
+    const titleNoMatch = url.match(/[?&]title_no=([^&]*)/i);
+    if (!titleNoMatch) {
+      throw new Error("无法从URL中提取title_no");
+    }
+    const titleNo = titleNoMatch[1];
+
+    return `${path}:${titleNo}`;
+  }
+
+  /**
+   * 生成Webtoon URL
+   * @param {string} host - 基础主机（例如"https://www.webtoons.com"）
+   * @param {string} lang - 语言代码（例如"zh-hant"）
+   * @param {string} pathAndId - 由extractWebtoonPathAndId返回的"path:titleNo"格式字符串
+   * @param {string} episodeNo - 剧集编号（可选）
+   * @param {string} episodeTitle - 剧集标题（URL编码后的，可选）
+   * @returns {string} - 完整的URL字符串
+   */
+  generateEpisodeUrl(pathAndId, episodeNoAndTitle = null) {
+    console.log(pathAndId);
+    console.log(episodeNoAndTitle);
+    const lang = this.loadSetting("language") || "en";
+    const [path, titleNo] = pathAndId.split(":");
+
+    if (episodeNoAndTitle) {
+      const parts = episodeNoAndTitle.split("-");
+      const episodeNo = parts[0];
+      const episodeTitle = parts.slice(1).join(":");
+      return `https://www.webtoons.com/${lang}/${path}/${episodeTitle}/viewer?title_no=${titleNo}&episode_no=${episodeNo}`;
+    } else {
+      // 如果没有剧集编号和标题，返回列表页面URL
+      return `https://m.webtoons.com/${lang}/${path}/list?title_no=${titleNo}`;
+    }
+  }
   /**
    * [Optional] init function
    */
@@ -105,7 +153,7 @@ class WebtoonComicSource extends ComicSource {
 
                 comics.push(
                   new Comic({
-                    id: fullUrl, // Use the full URL as the ID
+                    id: this.extractWebtoonPathAndId(fullUrl),
                     title: title,
                     subTitle: author,
                     cover: cover,
@@ -492,7 +540,7 @@ class WebtoonComicSource extends ComicSource {
 
           comics.push(
             new Comic({
-              id: fullUrl, // Use the full URL as the ID
+              id: this.extractWebtoonPathAndId(fullUrl), // Use the full URL as the ID
               title: title,
               subTitle: author,
               cover: cover,
@@ -776,16 +824,15 @@ class WebtoonComicSource extends ComicSource {
      * @returns {Promise<ComicDetails>}
      */
     loadInfo: async (id) => {
+      // id is xxx/xxx:title_no_number
       // Extract title_no from the URL using regex
-      const urlRegex = /[?&](titleNo|title_no)=([^&]*)/i;
-      const match = id.match(urlRegex);
-      const titleNo = match ? match[2] : null;
+      const titleNo = id.split(":")[1];
 
       if (!titleNo) {
         throw "Could not extract title_no from the provided URL";
       }
 
-      const url = id.replace("www", "m"); // Use the passed URL directly
+      const url = this.generateEpisodeUrl(id); // Use the passed URL directly
       const lang = url.split("/")[3] || this.loadSetting("language") || "en"; // Extract language from URL
 
       // Set up cookies first to ensure proper access
@@ -883,10 +930,10 @@ class WebtoonComicSource extends ComicSource {
 
       // Process episodes to extract chapter information
       episodeList.map((episode) => {
-        const epId = episode.viewerLink; // Use viewerLink as the episode ID
+        const epId = episode.episodeNo; // Use viewerLink as the episode ID
         const epTitle = episode.episodeTitle;
         if (epId && epTitle) {
-          chapters[epId] = epTitle;
+          chapters[`${epId}-${epTitle}`] = epTitle;
         }
       });
 
@@ -932,17 +979,15 @@ class WebtoonComicSource extends ComicSource {
     loadEp: async (comicId, epId) => {
       // Since comicId is now the full URL and epId is the episode viewer URL from API,
       // we can use epId directly as the viewer URL
-      const viewerUrl = epId; // epId is the viewer link from the API
+
+      const viewerUrl = this.generateEpisodeUrl(comicId, epId); // epId is the viewer link from the API
 
       // Load the viewer page to get the images
-      const viewerRes = await Network.get(
-        "https://www.webtoons.com" + viewerUrl,
-        {
-          Referer: comicId, // Use the comic URL as referer
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
-      );
+      const viewerRes = await Network.get(viewerUrl, {
+        Referer: comicId, // Use the comic URL as referer
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      });
 
       if (viewerRes.status !== 200) {
         throw `Invalid status code: ${viewerRes.status}`;

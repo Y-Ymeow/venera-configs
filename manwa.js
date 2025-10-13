@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.5";
+  version = "1.0.6";
   minAppVersion = "1.4.0";
 
   url =
@@ -342,6 +342,8 @@ class Manwa extends ComicSource {
         (element) => element.attributes["data-r-src"],
       );
 
+      images.pop();
+
       return {
         images: images,
       };
@@ -363,7 +365,6 @@ class Manwa extends ComicSource {
           url: url,
           headers: {
             Referer: this.domain + "/",
-            Origin: this.domain,
             "User-Agent": Manwa.ua,
             "Sec-GPC": 1,
             Pragma: "no-cache",

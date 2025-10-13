@@ -120,13 +120,13 @@
     "name": "漫蛙",
     "fileName": "manwa.js",
     "key": "manwa",
-    "version": "1.0.5"
+    "version": "1.0.6"
   },
   {
     "name": "Manhwa 18 CC",
     "fileName": "manhwa18cc.js",
     "key": "manhwa18cc",
-    "version": "1.0.4"
+    "version": "1.0.5"
   },
   {
     "name": "늑대닷컴",
@@ -144,13 +144,13 @@
     "name": "Manhwa Raw",
     "fileName": "manhwa_raw.js",
     "key": "manhwa_raw",
-    "version": "1.0.5"
+    "version": "1.0.6"
   },
   {
     "name": "Webtoon",
     "fileName": "webtoon.js",
     "key": "webtoon",
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   {
     "name": "漫画鱼",
