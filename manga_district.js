@@ -7,7 +7,7 @@ class MangaDistrictComicSource extends ComicSource {
   // unique id of the source
   key = "manga_district";
 
-  version = "1.0.0";
+  version = "1.0.1";
 
   minAppVersion = "1.4.0";
 
@@ -22,76 +22,12 @@ class MangaDistrictComicSource extends ComicSource {
     this.baseUrl = "https://mangadistrict.com";
   }
 
-  // [Optional] account related
-  account = {
-    /**
-     * [Optional] login with account and password, return any value to indicate success
-     * @param account {string}
-     * @param pwd {string}
-     * @returns {Promise<any>}
-     */
-    login: async (account, pwd) => {
-      // Manga District doesn't require account login for reading
-      return "ok";
-    },
-
-    /**
-     * [Optional] login with webview
-     */
-    loginWithWebview: {
-      url: "",
-      /**
-       * check login status
-       * @param url {string} - current url
-       * @param title {string} - current title
-       * @returns {boolean} - return true if login success
-       */
-      checkStatus: (url, title) => {
-        // Default implementation - always succeed since no login is required
-        return true;
-      },
-      /**
-       * [Optional] Callback when login success
-       */
-      onLoginSuccess: () => {},
-    },
-
-    /**
-     * [Optional] login with cookies
-     * Note: If `this.account.login` is implemented, this will be ignored
-     */
-    loginWithCookies: {
-      fields: ["ipb_member_id", "ipb_pass_hash", "igneous", "star"],
-      /**
-       * Validate cookies, return false if cookies are invalid.
-       *
-       * Use `Network.setCookies` to set cookies before validate.
-       * @param values {string[]} - same order as `fields`
-       * @returns {Promise<boolean>}
-       */
-      validate: async (values) => {
-        // No account required, return true
-        return true;
-      },
-    },
-
-    /**
-     * logout function, clear account related data
-     */
-    logout: () => {
-      // No account required, nothing to do
-    },
-
-    // {string?} - register url
-    registerWebsite: "https://mangadistrict.com/register",
-  };
-
   // explore page list
   explore = [
     {
       // title of the page.
       // title is used to identify the page, it should be unique
-      title: "Latest",
+      title: "Manga District",
       type: "multiPageComicList",
       load: async (page) => {
         const res = await Network.get(
@@ -1118,74 +1054,6 @@ class MangaDistrictComicSource extends ComicSource {
 
     // enable tags suggestions
     enableTagsSuggestions: false,
-  };
-
-  // favorite related
-  favorites = {
-    // whether support multi folders
-    multiFolder: false,
-    /**
-     * add or delete favorite.
-     * throw `Login expired` to indicate login expired, App will automatically re-login and re-add/delete favorite
-     * @param comicId {string}
-     * @param folderId {string}
-     * @param isAdding {boolean} - true for add, false for delete
-     * @param favoriteId {string?} - [Comic.favoriteId]
-     * @returns {Promise<any>} - return any value to indicate success
-     */
-    addOrDelFavorite: async (comicId, folderId, isAdding, favoriteId) => {
-      // Not implemented since no account needed - just return success
-      return "ok";
-    },
-    /**
-     * load favorite folders.
-     * throw `Login expired` to indicate login expired, App will automatically re-login retry.
-     * if comicId is not null, return favorite folders which contains the comic.
-     * @param comicId {string?}
-     * @returns {Promise<{folders: {[p: string]: string}, favorited: string[]}>} - `folders` is a map of folder id to folder name, `favorited` is a list of folder id which contains the comic
-     */
-    loadFolders: async (comicId) => {
-      // No account needed, return empty folders
-      return {
-        folders: {},
-        favorited: [],
-      };
-    },
-    /**
-     * add a folder
-     * @param name {string}
-     * @returns {Promise<any>} - return any value to indicate success
-     */
-    addFolder: async (name) => {
-      // Not applicable, return success
-      return "ok";
-    },
-    /**
-     * delete a folder
-     * @param folderId {string}
-     * @returns {Promise<void>} - return any value to indicate success
-     */
-    deleteFolder: async (folderId) => {
-      // Not applicable, return success
-    },
-    /**
-     * load comics in a folder
-     * throw `Login expired` to indicate login expired, App will automatically re-login retry.
-     * @param page {number}
-     * @param folder {string?} - folder id, null for non-multi-folder
-     * @returns {Promise<{comics: Comic[], maxPage: number}>}
-     */
-    loadComics: async (page, folder) => {
-      // No account needed, return empty since we can't save favorites
-      return {
-        comics: [],
-        maxPage: 1,
-      };
-    },
-    /**
-     * If the comic source only allows one comic in one folder, set this to true.
-     */
-    singleFolderForSingleComic: false,
   };
 
   /// single comic related
