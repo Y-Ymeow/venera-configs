@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.2";
+  version = "1.2.3";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -492,29 +492,6 @@ class Goda extends ComicSource {
 
       // Extract cover
       let cover = "";
-      const coverElement = doc.querySelector(
-        'div[style*="background-image:url"] img, .aspect-3-4 img',
-      );
-      if (coverElement) {
-        cover =
-          coverElement.attributes["src"] ||
-          coverElement.attributes["data-src"] ||
-          "";
-      } else {
-        // Try to get the cover from the background style
-        const coverDiv = doc.querySelector(
-          'div[style*="background-image:url"]',
-        );
-        if (coverDiv) {
-          const style = coverDiv.attributes["style"];
-          const match = style.match(
-            /background-image:url\(['"]?([^'"]*?)['"]?\)/,
-          );
-          if (match && match[1]) {
-            cover = match[1];
-          }
-        }
-      }
 
       // Extract title
       const titleElement = doc.querySelector("h1");
@@ -586,6 +563,7 @@ class Goda extends ComicSource {
 
         if (apiRes.status === 200) {
           const apiJson = await apiRes.json();
+          cover = apiJson.data.cover;
           title = apiJson.data.title;
           const apiChapters = apiJson.data?.chapters;
 
