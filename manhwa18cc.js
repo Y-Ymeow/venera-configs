@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.2";
+  version = "1.0.3";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -221,7 +221,7 @@ class Manhwa18cc extends ComicSource {
 
       // Extract chapters
       const chapters = new Map();
-      const chapterElements = doc.querySelectorAll("li.a-h");
+      const chapterElements = doc.querySelectorAll("li.a-h").reverse();
       for (let i = 0; i < chapterElements.length; i++) {
         const chapterEl = chapterElements[i];
         const linkElement = chapterEl.querySelector("a");
