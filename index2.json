@@ -157,5 +157,11 @@
     "fileName": "manhuayu5.js",
     "key": "manhuayu5",
     "version": "1.0.0"
+  },
+  {
+    "name": "嗨皮漫画",
+    "fileName": "happy.js",
+    "key": "happy",
+    "version": "1.0.1"
   }
 ]

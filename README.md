@@ -10,6 +10,9 @@ Configuration file repository for venera
 - 늑대닷컴 (Wolf)
 - Goda
 - Manhwa Raw
+- Webtoon
+- ManHuayu
+- 嗨皮漫画
 
 ## 通过 JSON 自动添加漫画源
 
