@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.3";
+  version = "1.0.4";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -214,7 +214,9 @@ class Manhwa18cc extends ComicSource {
 
       // Extract tags
       const tags = [];
-      const tagElements = doc.querySelectorAll(".genres-content a");
+      const tagElements = doc.querySelectorAll(
+        ".genres-content a, .artist-content a",
+      );
       for (const tagEl of tagElements) {
         tags.push(tagEl.text.trim());
       }
@@ -222,6 +224,15 @@ class Manhwa18cc extends ComicSource {
       // Extract chapters
       const chapters = new Map();
       const chapterElements = doc.querySelectorAll("li.a-h").reverse();
+
+      let updateTime = doc
+        .querySelector("li.a-h span.chapter-time")
+        .text.trim();
+
+      let updateTimeDate = new Date(updateTime);
+      updateTimeDate.setDate(updateTimeDate.getDate() + 1);
+      updateTime = updateTimeDate.toISOString().slice(0, 10);
+
       for (let i = 0; i < chapterElements.length; i++) {
         const chapterEl = chapterElements[i];
         const linkElement = chapterEl.querySelector("a");
@@ -254,6 +265,7 @@ class Manhwa18cc extends ComicSource {
           作者: authors,
           标签: tags,
         },
+        updateTime,
         // Artist is typically not separately listed
       });
     },

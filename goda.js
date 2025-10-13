@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.1";
+  version = "1.2.2";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -568,6 +568,7 @@ class Goda extends ComicSource {
 
       // Get detailed chapter info from API using the manga ID
       const chapters = new Map();
+      let updateTime = "";
       if (mangaId) {
         const apiRes = await fetch(
           `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`,
@@ -588,6 +589,9 @@ class Goda extends ComicSource {
           title = apiJson.data.title;
           const apiChapters = apiJson.data?.chapters;
 
+          updateTime = apiChapters[apiChapters.length - 1].attributes.updatedAt
+            .replace("T", " ")
+            .replace("Z", "");
           if (apiChapters) {
             // The API returns chapters as an indexed object
             for (const key in apiChapters) {
@@ -635,6 +639,7 @@ class Goda extends ComicSource {
           标签: genres,
         },
         chapters: chapters,
+        updateTime,
       });
 
       return details;

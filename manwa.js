@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.3";
+  version = "1.0.5";
   minAppVersion = "1.4.0";
 
   url =
@@ -202,7 +202,7 @@ class Manwa extends ComicSource {
       type: "multiPartPage",
       load: async () => {
         /** 读取推荐 */
-        const res = await Network.get(this.buildUrl("/rank"), {
+        const res = await Network.get(this.buildUrl("rank"), {
           "User-Agent": Manwa.ua,
         });
         if (res.status !== 200) {
@@ -231,7 +231,7 @@ class Manwa extends ComicSource {
      * @returns {Promise<ComicDetails>}
      */
     loadInfo: async (id) => {
-      const res = await Network.get(this.buildUrl(`/book/${id}`), {
+      const res = await Network.get(this.buildUrl(`book/${id}`), {
         "User-Agent": Manwa.ua,
       });
       if (res.status !== 200) {
@@ -252,20 +252,21 @@ class Manwa extends ComicSource {
           "p.detail-main-info-author > span.detail-main-info-value > a",
         )?.text || "";
       const statusText =
-        document.querySelector(
-          "p.detail-main-info-author > span.detail-main-info-value",
-        )?.text || "";
-      const status =
-        statusText === "连载中"
-          ? "连载中"
-          : statusText === "已完结"
-            ? "已完结"
-            : "未知";
+        document
+          .querySelectorAll(
+            "p.detail-main-info-author > span.detail-main-info-value",
+          )[1]
+          ?.text?.trim() || "未知";
       const tags = document
         .querySelectorAll("div.detail-main-info-class > a.info-tag")
         .map((e) => e.text.trim());
       const description =
         document.querySelector("#detail > p.detail-desc")?.text || "";
+
+      const updateTime = document
+        .querySelector(".detail-list-title-3")
+        .text.replace("更新", "")
+        .trim();
 
       // Extract chapters
       const chapterElements = document.querySelectorAll(
@@ -286,10 +287,11 @@ class Manwa extends ComicSource {
         description: description,
         tags: {
           作者: [author],
-          状态: [status],
+          状态: [statusText],
           标签: tags,
         },
         chapters: chapters,
+        updateTime,
       });
     },
 
@@ -322,7 +324,7 @@ class Manwa extends ComicSource {
       const imageSourceParam = this.loadSetting("imageSource") || "";
 
       const res = await Network.get(
-        this.buildUrl(`/chapter/${epId}${imageSourceParam}`),
+        this.buildUrl(`chapter/${epId}${imageSourceParam}`),
         {
           "User-Agent": Manwa.ua,
         },
@@ -494,7 +496,7 @@ class Manwa extends ComicSource {
      */
     load: async (category, param, options, page) => {
       // Build URL with filters - following the original Kotlin source code
-      let url = `${this.domain}/booklist?page=${page}`;
+      let url = `${this.domain}booklist?page=${page}`;
 
       // Apply the filters from the category
       if (category === "end") {
@@ -669,7 +671,7 @@ class Manwa extends ComicSource {
        */
       load: async (option, page) => {
         // Build ranking URL based on option
-        let url = `${this.domain}/rank`;
+        let url = `${this.domain}rank`;
 
         const res = await Network.get(url);
         if (res.status !== 200) {
@@ -683,10 +685,15 @@ class Manwa extends ComicSource {
           const id = element.href || "";
           const coverElement = element.querySelector("img");
           const cover = coverElement?.attributes["data-original"] || "";
+          const description = element.parent.parent
+            .querySelector(".manga-list-2-tip")
+            .text.trim();
 
           return new Comic({
             id: id,
             title: title,
+            subTitle: description,
+            description,
             cover: cover,
           });
         }

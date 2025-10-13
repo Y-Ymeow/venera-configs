@@ -2,7 +2,7 @@ class WolfComicSource extends ComicSource {
   // Required metadata
   name = "늑대닷컴";
   key = "wolf_comics";
-  version = "1.2.3";
+  version = "1.2.4";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/wolf.js";
@@ -337,6 +337,9 @@ class WolfComicSource extends ComicSource {
         chapters.set(id, title);
       });
 
+      let updateTime =
+        chaptersEle[0]?.querySelector(".date")?.text?.trim() || "";
+
       const reversedChapters = new Map([...chapters].reverse());
 
       return new ComicDetails({
@@ -348,6 +351,7 @@ class WolfComicSource extends ComicSource {
           标签: sub,
         },
         chapters: reversedChapters,
+        updateTime,
       });
     },
     loadEp: async (comicId, chapterId) => {

@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.4";
+  version = "1.0.5";
 
   minAppVersion = "1.4.0";
 
@@ -274,6 +274,35 @@ class ManhwaRawComicSource extends ComicSource {
       );
       let altName = (altNameElement ? altNameElement.text.trim() : "") || "";
 
+      let updateTimeElement = document.querySelector(
+        "li.wp-manga-chapter .chapter-release-date",
+      );
+      let timeText = updateTimeElement ? updateTimeElement.text.trim() : "";
+
+      let updateTime;
+      if (!timeText || timeText === "") {
+        // If empty, it means today
+        const today = new Date();
+        updateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      } else {
+        // Original format is MM/DD, we need to convert to YYYY-MM-DD
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const [month, day] = timeText
+          .split("/")
+          .map((num) => parseInt(num, 10));
+
+        // Create date with current year
+        const date = new Date(currentYear, month - 1, day);
+
+        // If the date is in the future (meaning it's probably from last year)
+        if (date > today) {
+          date.setFullYear(currentYear - 1);
+        }
+
+        updateTime = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      }
+
       // Parse chapters
       let chapterElements = document.querySelectorAll("li.wp-manga-chapter");
       const chapters = new Map();
@@ -306,6 +335,7 @@ class ManhwaRawComicSource extends ComicSource {
           状态: [statusText],
         },
         chapters: chapters,
+        updateTime,
       });
     },
     /**
