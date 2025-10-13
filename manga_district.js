@@ -13,7 +13,7 @@ class MangaDistrictComicSource extends ComicSource {
 
   // update url
   url =
-    "https://raw.githubusercontent.com/kodjodevf/mangamint/refs/heads/main/configs/manga_district.js";
+    "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manga_district.js";
 
   /**
    * [Optional] init function
