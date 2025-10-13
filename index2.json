@@ -163,5 +163,11 @@
     "fileName": "happy.js",
     "key": "happy",
     "version": "1.0.2"
+  },
+  {
+    "name": "Manga District",
+    "fileName": "manga_district.js",
+    "key": "manga_district",
+    "version": "1.0.0"
   }
 ]

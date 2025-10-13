@@ -12,6 +12,7 @@ Configuration file repository for venera
 - Manhwa Raw
 - Webtoon
 - ManHuayu
+- Manga District
 - 嗨皮漫画
 
 ## 通过 JSON 自动添加漫画源
