@@ -151,5 +151,11 @@
     "fileName": "webtoon.js",
     "key": "webtoon",
     "version": "1.0.1"
+  },
+  {
+    "name": "漫画鱼",
+    "fileName": "manhuayu5.js",
+    "key": "manhuayu5",
+    "version": "1.0.0"
   }
 ]
