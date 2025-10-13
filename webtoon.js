@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.2";
+  version = "1.0.3";
 
   minAppVersion = "1.4.0";
 
@@ -270,7 +270,7 @@ class WebtoonComicSource extends ComicSource {
   // categories
   category = {
     /// title of the category page, used to identify the page, it should be unique
-    title: "Categories",
+    title: "Webtoon",
     parts: [
       {
         // title of the part

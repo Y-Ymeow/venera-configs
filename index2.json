@@ -150,7 +150,7 @@
     "name": "Webtoon",
     "fileName": "webtoon.js",
     "key": "webtoon",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   {
     "name": "漫画鱼",
@@ -162,6 +162,6 @@
     "name": "嗨皮漫画",
     "fileName": "happy.js",
     "key": "happy",
-    "version": "1.0.1"
+    "version": "1.0.2"
   }
 ]

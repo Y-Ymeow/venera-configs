@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.1";
+  version = "1.0.2";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -49,7 +49,7 @@ class HappyComicSource extends ComicSource {
   ];
 
   category = {
-    title: "分类",
+    title: "嗨皮漫画",
     parts: [
       {
         name: "分类",
