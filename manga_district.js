@@ -7,7 +7,7 @@ class MangaDistrictComicSource extends ComicSource {
   // unique id of the source
   key = "manga_district";
 
-  version = "1.0.1";
+  version = "1.0.2";
 
   minAppVersion = "1.4.0";
 
@@ -69,7 +69,7 @@ class MangaDistrictComicSource extends ComicSource {
   // categories
   category = {
     /// title of the category page, used to identify the page, it should be unique
-    title: "Categories",
+    title: "Manga District",
     parts: [
       {
         // title of the part
