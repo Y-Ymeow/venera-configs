@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.6";
+  version = "1.0.7";
 
   minAppVersion = "1.4.0";
 
@@ -74,13 +74,19 @@ class ManhwaRawComicSource extends ComicSource {
         attrs["src"] ||
         attrs["data-cfsrc"];
     }
+
+    // Clean up cover URL
+    if (cover) {
+      cover = cover.replace("awi.", "");
+    }
+
     let tags = [];
     let description = "";
 
     return new Comic({
       id: id,
       title: title,
-      cover: cover.replace("awi.", ""),
+      cover: cover,
       tags: tags,
       description: description,
     });
@@ -132,7 +138,7 @@ class ManhwaRawComicSource extends ComicSource {
 
         return {
           comics: latestComics,
-          maxPage: hasNext ? page + 1 : 1,
+          maxPage: hasNext ? page + 1 : page,
         };
       },
     },
@@ -148,60 +154,68 @@ class ManhwaRawComicSource extends ComicSource {
      */
     load: async (keyword, options, page) => {
       let url = `${this.domain}/page/${page}/?s=${encodeURIComponent(keyword)}&post_type=wp-manga`;
-      let res = await Network.get(url);
+      let res = await Network.get(url, {
+        headers: {
+          "User-Agent": this.ua,
+        },
+      });
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }
 
       let document = new HtmlDocument(res.body);
 
-      function parseComic(element) {
-        let linkElement =
-          element.querySelector("div.c-tabs-item__content a, .manga__item a") ||
-          element.querySelector("div.post-title a");
-        let id = linkElement
-          ? this.extractMangaSlug(linkElement.attributes["href"])
-          : undefined;
-        let titleElement = element.querySelector("div.post-title a");
-        let imgElement = element.querySelector("img");
-        let title =
-          (titleElement ? titleElement.text : "") ||
-          (imgElement ? imgElement.attributes["alt"] : "") ||
-          "Unknown Title";
-        let coverElement = element.querySelector("img");
-        let cover = null;
-        if (coverElement) {
-          let attrs = coverElement.attributes;
-          cover =
-            attrs["data-src"] ||
-            attrs["data-lazy-src"] ||
-            attrs["src"] ||
-            attrs["data-cfsrc"];
-        }
-        let tags = [];
-        let description = "";
+      // Query for search results with the correct selector
+      let searchResults = document
+        .querySelectorAll("div.c-tabs-item__content")
+        .map((element) => {
+          // Find the link element for the manga title
+          let linkElement = element.querySelector("div.post-title a");
 
-        return new Comic({
-          id: id,
-          title: title,
-          cover: cover,
-          tags: tags,
-          description: description,
-        });
-      }
+          // Extract ID from the URL
+          let id = linkElement
+            ? this.extractMangaSlug(linkElement.attributes["href"])
+            : undefined;
 
-      let comics = document
-        .querySelectorAll(
-          "div.c-tabs-item__content , .manga__item, div.page-item-detail",
-        )
-        .map(parseComic)
+          // Get the title from the link element
+          let title = linkElement ? linkElement.text.trim() : "Unknown Title";
+
+          // Find the cover image
+          let coverElement = element.querySelector("img");
+          let cover = null;
+          if (coverElement) {
+            let attrs = coverElement.attributes;
+            cover =
+              attrs["data-src"] ||
+              attrs["data-lazy-src"] ||
+              attrs["src"] ||
+              attrs["data-cfsrc"];
+          }
+
+          // Clean up cover URL
+          if (cover) {
+            cover = cover.replace("awi.", "");
+          }
+
+          let tags = [];
+          let description = "";
+
+          return new Comic({
+            id: id,
+            title: title,
+            cover: cover,
+            tags: tags,
+            description: description,
+          });
+        })
         .filter((comic) => comic.title !== "Unknown Title"); // Filter out comics with unknown title
 
-      // For search, we'll return 1 as maxPage since Madara themes typically don't have reliable pagination info in search results
-      let maxPage = document.querySelector("a.nextpostslink") ? page + 1 : page;
+      // Check for pagination
+      const hasNext = !!document.querySelector("a.nextpostslink");
+      let maxPage = hasNext ? page + 1 : page;
 
       return {
-        comics: comics,
+        comics: searchResults,
         maxPage: maxPage,
       };
     },

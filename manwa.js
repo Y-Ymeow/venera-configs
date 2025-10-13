@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.6";
+  version = "1.0.7";
   minAppVersion = "1.4.0";
 
   url =
@@ -247,15 +247,23 @@ class Manwa extends ComicSource {
         document.querySelector("div.detail-main-cover > img")?.attributes[
           "data-original"
         ] || "";
-      const author =
-        document.querySelector(
-          "p.detail-main-info-author > span.detail-main-info-value > a",
-        )?.text || "";
+      const author = document
+        .querySelectorAll(
+          "p.detail-main-info-author > span.detail-main-info-value",
+        )[1]
+        .querySelectorAll("a");
+      let authorTexts = author.map((e) => e.text.trim());
+      const subtitle =
+        document
+          .querySelectorAll(
+            "p.detail-main-info-author > span.detail-main-info-value",
+          )[3]
+          ?.text?.trim() || "";
       const statusText =
         document
           .querySelectorAll(
             "p.detail-main-info-author > span.detail-main-info-value",
-          )[1]
+          )[2]
           ?.text?.trim() || "未知";
       const tags = document
         .querySelectorAll("div.detail-main-info-class > a.info-tag")
@@ -284,9 +292,10 @@ class Manwa extends ComicSource {
       return new ComicDetails({
         title: title,
         cover: cover,
+        subtitle: `最新章节: ${subtitle}`,
         description: description,
         tags: {
-          作者: [author],
+          作者: authorTexts,
           状态: [statusText],
           标签: tags,
         },
@@ -480,6 +489,138 @@ class Manwa extends ComicSource {
           },
         ],
       },
+      {
+        name: "地区",
+        type: "fixed",
+        categories: [
+          {
+            label: "全部",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "",
+              },
+            },
+          },
+          {
+            label: "韩国",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "2",
+              },
+            },
+          },
+          {
+            label: "日漫",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "3",
+              },
+            },
+          },
+          {
+            label: "国漫",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "4",
+              },
+            },
+          },
+          {
+            label: "台漫",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "5",
+              },
+            },
+          },
+          {
+            label: "其他",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "6",
+              },
+            },
+          },
+          {
+            label: "未分类",
+            target: {
+              page: "category",
+              attributes: {
+                category: "area",
+                param: "1",
+              },
+            },
+          },
+        ],
+      },
+      {
+        name: "类型",
+        type: "fixed",
+        categories: [
+          {
+            label: "全部",
+            target: {
+              page: "category",
+              attributes: {
+                category: "gender",
+                param: "-1",
+              },
+            },
+          },
+          {
+            label: "一般向",
+            target: {
+              page: "category",
+              attributes: {
+                category: "gender",
+                param: "2",
+              },
+            },
+          },
+          {
+            label: "BL向",
+            target: {
+              page: "category",
+              attributes: {
+                category: "gender",
+                param: "0",
+              },
+            },
+          },
+          {
+            label: "禁漫",
+            target: {
+              page: "category",
+              attributes: {
+                category: "gender",
+                param: "1",
+              },
+            },
+          },
+          {
+            label: "TL向",
+            target: {
+              page: "category",
+              attributes: {
+                category: "gender",
+                param: "3",
+              },
+            },
+          },
+        ],
+      },
     ],
     // enable ranking page
     enableRankingPage: true,
@@ -499,6 +640,11 @@ class Manwa extends ComicSource {
       // Build URL with filters - following the original Kotlin source code
       let url = `${this.domain}booklist?page=${page}`;
 
+      // Track which filters have been applied via category to avoid conflicts with options
+      let hasCategoryStatus = false;
+      let hasCategoryGender = false;
+      let hasCategoryArea = false;
+
       // Apply the filters from the category
       if (category === "end") {
         if (param !== "") {
@@ -506,14 +652,21 @@ class Manwa extends ComicSource {
         } else {
           url += "&end="; // for "全部" status
         }
+        hasCategoryStatus = true;
       } else if (category === "gender") {
-        url += `&gender=${param}`;
+        if (param !== "") {
+          url += `&gender=${param}`;
+        } else {
+          url += "&gender=-1"; // for "全部" gender
+        }
+        hasCategoryGender = true;
       } else if (category === "area") {
         if (param !== "") {
           url += `&area=${param}`;
         } else {
           url += "&area="; // for "全部" area
         }
+        hasCategoryArea = true;
       } else if (category === "tag") {
         if (param !== "") {
           url += `&tag=${param}`;
@@ -523,40 +676,50 @@ class Manwa extends ComicSource {
       }
 
       // Apply filters from options since now we only have one "all" category
+      // But only if the corresponding category filter hasn't been applied yet
       for (const option of options) {
         if (option.startsWith("status@")) {
-          // Handle status options
-          const parts = option.split("-")[0].split("@");
-          if (parts.length >= 2) {
-            // Has a value (e.g. "status-2-连载中")
-            const statusValue = parts[1];
-            url += `&end=${statusValue}`;
-          } else {
-            // For "全部" status (e.g. "status-全部")
-            url += "&end=";
+          // Only apply status option if no category status filter was applied
+          if (!hasCategoryStatus) {
+            // Handle status options
+            const parts = option.split("-")[0].split("@");
+            if (parts.length >= 2) {
+              // Has a value (e.g. "status-2-连载中")
+              const statusValue = parts[1];
+              url += `&end=${statusValue}`;
+            } else {
+              // For "全部" status (e.g. "status-全部")
+              url += "&end=";
+            }
           }
         } else if (option.startsWith("type@")) {
-          // Handle type options
-          const typeValue = option.split("-")[0].split("@")[1];
-          if (typeValue !== "_1") {
-            // -1 is for "全部" (all)
-            url += `&gender=${typeValue}`;
-          } else {
-            url += "&gender=-1";
+          // Only apply type option if no category gender filter was applied
+          if (!hasCategoryGender) {
+            // Handle type options
+            const typeValue = option.split("-")[0].split("@")[1];
+            if (typeValue !== "_1") {
+              // -1 is for "全部" (all)
+              url += `&gender=${typeValue}`;
+            } else {
+              url += "&gender=-1";
+            }
           }
         } else if (option.startsWith("region@")) {
-          // Handle region options
-          const parts = option.split("-")[0].split("@");
-          if (parts.length >= 2) {
-            // Has a value (e.g. "region-2-韩国")
-            const regionValue = parts[1];
-            url += `&area=${regionValue}`;
-          } else {
-            // For "全部" region (e.g. "region-全部")
-            url += "&area=";
+          // Only apply region option if no category area filter was applied
+          if (!hasCategoryArea) {
+            // Handle region options
+            const parts = option.split("-")[0].split("@");
+            if (parts.length >= 2) {
+              // Has a value (e.g. "region-2-韩国")
+              const regionValue = parts[1];
+              url += `&area=${regionValue}`;
+            } else {
+              // For "全部" region (e.g. "region-全部")
+              url += "&area=";
+            }
           }
         } else if (option.startsWith("sort@")) {
-          // Handle sort options
+          // Handle sort options (these don't conflict with categories, always apply)
           const sortValue = option
             .split("-")[0]
             .split("@")[1]
@@ -643,6 +806,7 @@ class Manwa extends ComicSource {
           "type@1-禁漫",
           "type@3-TL向",
         ],
+        notShowWhen: ["gender"], // Hide when gender category is selected
       },
       {
         label: "地区",
@@ -655,6 +819,7 @@ class Manwa extends ComicSource {
           "region@6-其他",
           "region@1-未分类",
         ],
+        notShowWhen: ["area"], // Hide when area category is selected
       },
       {
         label: "排序",
