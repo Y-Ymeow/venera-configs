@@ -2313,7 +2313,7 @@ class HappyComicSource extends ComicSource {
       title: "Launch Browser",
       type: "callback",
       callback: () => {
-        UI.launchBrowser("https://m.happymh.com");
+        UI.launchUrl("https://m.happymh.com");
       },
     },
     enableCache: {
