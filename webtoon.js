@@ -7,13 +7,227 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.3";
+  version = "1.0.4";
 
   minAppVersion = "1.4.0";
 
   // update url
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/webtoon.js";
+
+  // --- Cache Implementation ---
+  async _withCache(key, fetcher) {
+    const enableCache = this.loadSetting("enableCache");
+    if (!enableCache) {
+      return await fetcher();
+    }
+
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const cachedTimestamp = get(timestamps, key);
+    const data = this.loadData("cache_data") || {};
+    const cachedData = get(data, key);
+
+    if (cachedTimestamp && cachedData) {
+      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
+      if (!isExpired) {
+        console.log(`[Cache] HIT: ${key}`);
+        return cachedData;
+      }
+    }
+
+    try {
+      console.log(
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
+      );
+      const newData = await fetcher();
+
+      const set = (obj, p, val) => {
+        const parts = p.split(".");
+        const last = parts.pop();
+        let current = obj;
+        for (const part of parts) {
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        current[last] = val;
+        return obj;
+      };
+
+      let allTimestamps = this.loadData("cache_timestamps") || {};
+      let allData = this.loadData("cache_data") || {};
+      let allKeys = this.loadData("cache_keys") || {};
+
+      set(allTimestamps, key, Date.now());
+      set(allData, key, newData);
+      set(allKeys, key, true);
+
+      this.saveData("cache_timestamps", allTimestamps);
+      this.saveData("cache_data", allData);
+      this.saveData("cache_keys", allKeys);
+
+      return newData;
+    } catch (e) {
+      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
+      if (cachedData) {
+        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        return cachedData;
+      }
+      throw e;
+    }
+  }
+
+  _getAllCacheKeys() {
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const deletableKeys = [];
+    if (timestamps.explore) {
+      Object.keys(timestamps.explore).forEach((lang) =>
+        deletableKeys.push(`explore.${lang}`),
+      );
+    }
+    if (timestamps.comic) {
+      Object.keys(timestamps.comic).forEach((id) =>
+        deletableKeys.push(`comic.${id}`),
+      );
+    }
+    return deletableKeys;
+  }
+
+  async _manageCacheAction() {
+    const options = [
+      "Clear All Cache",
+      "Clear Expired Cache",
+      "Clear Specific Cache",
+    ];
+    const selected = await UI.showSelectDialog("Cache Management", options);
+
+    if (selected === 0) {
+      // Clear All
+      this.deleteData("cache_timestamps");
+      this.deleteData("cache_data");
+      this.deleteData("cache_keys");
+      UI.showMessage("Webtoon cache cleared.");
+    } else if (selected === 1) {
+      // Clear Expired
+      const count = this._clearExpiredCache();
+      UI.showMessage(`Cleared ${count} expired cache items.`);
+    } else if (selected === 2) {
+      // Clear Specific
+      const allKeys = this._getAllCacheKeys();
+
+      if (allKeys.length === 0) {
+        UI.showMessage("No cache entries to clear.");
+        return;
+      }
+
+      const selectedKeyIndex = await UI.showSelectDialog(
+        "Select cache key to clear",
+        allKeys,
+      );
+
+      if (selectedKeyIndex !== null) {
+        const keyToClear = allKeys[selectedKeyIndex];
+        this._clearCacheKey(keyToClear);
+        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
+      }
+    }
+  }
+
+  _clearCacheKey(key) {
+    const unset = (obj, p) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current || typeof current[part] !== "object") {
+          return;
+        }
+        current = current[part];
+      }
+      if (current) {
+        delete current[last];
+      }
+    };
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+    let keys = this.loadData("cache_keys") || {};
+
+    unset(timestamps, key);
+    unset(data, key);
+    unset(keys, key);
+
+    this.saveData("cache_timestamps", timestamps);
+    this.saveData("cache_data", data);
+    this.saveData("cache_keys", keys);
+  }
+
+  _clearExpiredCache() {
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+
+    let newTimestamps = {};
+    let newData = {};
+    let newKeys = {};
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+    const set = (obj, p, val) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      current[last] = val;
+      return obj;
+    };
+
+    const getAllKeys = (obj, prefix = "") => {
+      return Object.keys(obj).reduce((res, el) => {
+        if (typeof obj[el] === "object" && obj[el] !== null) {
+          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
+        }
+        return [...res, prefix + el];
+      }, []);
+    };
+
+    const allKeys = getAllKeys(timestamps);
+    let clearedCount = 0;
+
+    for (const key of allKeys) {
+      const timestamp = get(timestamps, key);
+      const isExpired = Date.now() - timestamp > CACHE_DURATION;
+
+      if (!isExpired) {
+        set(newTimestamps, key, timestamp);
+        set(newData, key, get(data, key));
+        set(newKeys, key, true);
+      } else {
+        clearedCount++;
+      }
+    }
+
+    this.saveData("cache_timestamps", newTimestamps);
+    this.saveData("cache_data", newData);
+    this.saveData("cache_keys", newKeys);
+
+    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
+    return clearedCount;
+  }
 
   /**
    * 提取Webtoon URL中的路径和title_no
@@ -100,161 +314,165 @@ class WebtoonComicSource extends ComicSource {
        */
       load: async (page) => {
         const lang = this.loadSetting("language") || "en";
-        const baseUrl = `https://www.webtoons.com/${lang}/`;
+        const cacheKey = `explore.${lang}`;
 
-        // Set up cookies first to ensure proper access
-        Network.setCookies("https://www.webtoons.com", [
-          new Cookie({
-            name: "ageGatePass",
-            value: "true",
-            domain: "webtoons.com",
-          }),
-          new Cookie({ name: "locale", value: lang, domain: "webtoons.com" }),
-          new Cookie({
-            name: "needGDPR",
-            value: "false",
-            domain: "webtoons.com",
-          }),
-        ]);
+        return this._withCache(cacheKey, async () => {
+          const baseUrl = `https://www.webtoons.com/${lang}/`;
 
-        const results = [];
+          // Set up cookies first to ensure proper access
+          Network.setCookies("https://www.webtoons.com", [
+            new Cookie({
+              name: "ageGatePass",
+              value: "true",
+              domain: "webtoons.com",
+            }),
+            new Cookie({ name: "locale", value: lang, domain: "webtoons.com" }),
+            new Cookie({
+              name: "needGDPR",
+              value: "false",
+              domain: "webtoons.com",
+            }),
+          ]);
 
-        // First section: Trending
-        try {
-          const trendingUrl = `${baseUrl}ranking/trending`;
+          const results = [];
 
-          const res = await Network.get(trendingUrl, {
-            Referer: `https://www.webtoons.com/${lang}/`,
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-          });
+          // First section: Trending
+          try {
+            const trendingUrl = `${baseUrl}ranking/trending`;
 
-          if (res.status === 200) {
-            const document = new HtmlDocument(res.body);
-            const comicElements =
-              document.querySelectorAll(".webtoon_list li a");
-
-            const comics = [];
-            for (const element of comicElements) {
-              const titleElement = element.querySelector(".title");
-              const coverElement = element.querySelector("img");
-              const authorElement = element.querySelector(".author");
-
-              if (titleElement && coverElement) {
-                const title = titleElement.text;
-                const author = authorElement ? authorElement.text : "";
-                const cover =
-                  coverElement.attributes["src"] ||
-                  coverElement.attributes["data-url"];
-                const href = element.attributes["href"];
-                const fullUrl = href.startsWith("http")
-                  ? href
-                  : `https://www.webtoons.com${href}`;
-
-                comics.push(
-                  new Comic({
-                    id: this.extractWebtoonPathAndId(fullUrl),
-                    title: title,
-                    subTitle: author,
-                    cover: cover,
-                    tags: [],
-                    description: "",
-                  }),
-                );
-              }
-            }
-
-            results.push({
-              title: "Trending",
-              comics: comics,
-              viewMore: {
-                page: "category",
-                attributes: {
-                  category: "trending",
-                  param: null,
-                },
-              },
+            const res = await Network.get(trendingUrl, {
+              Referer: `https://www.webtoons.com/${lang}/`,
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             });
 
-            document.dispose();
-          }
-        } catch (e) {
-          console.error(["Error loading Trending section:", e]);
-        }
+            if (res.status === 200) {
+              const document = new HtmlDocument(res.body);
+              const comicElements =
+                document.querySelectorAll(".webtoon_list li a");
 
-        // Add latest updates as the last section
-        try {
-          const day = [
-            "sunday",
-            "monday",
-            "tuesday",
-            "wednesday",
-            "thursday",
-            "friday",
-            "saturday",
-          ][new Date().getDay()];
-          const latestUrl = `${baseUrl}originals/${day}?sortOrder=UPDATE`;
+              const comics = [];
+              for (const element of comicElements) {
+                const titleElement = element.querySelector(".title");
+                const coverElement = element.querySelector("img");
+                const authorElement = element.querySelector(".author");
 
-          const res = await Network.get(latestUrl, {
-            Referer: `https://www.webtoons.com/${lang}/`,
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-          });
+                if (titleElement && coverElement) {
+                  const title = titleElement.text;
+                  const author = authorElement ? authorElement.text : "";
+                  const cover =
+                    coverElement.attributes["src"] ||
+                    coverElement.attributes["data-url"];
+                  const href = element.attributes["href"];
+                  const fullUrl = href.startsWith("http")
+                    ? href
+                    : `https://www.webtoons.com${href}`;
 
-          if (res.status === 200) {
-            const document = new HtmlDocument(res.body);
-            const comicElements =
-              document.querySelectorAll(".webtoon_list li a");
-
-            const comics = [];
-            for (const element of comicElements) {
-              const titleElement = element.querySelector(".title");
-              const coverElement = element.querySelector("img");
-              const authorElement = element.querySelector(".author");
-
-              if (titleElement && coverElement) {
-                const title = titleElement.text;
-                const author = authorElement ? authorElement.text : "";
-                const cover =
-                  coverElement.attributes["src"] ||
-                  coverElement.attributes["data-url"];
-                const href = element.attributes["href"];
-                const fullUrl = href.startsWith("http")
-                  ? href
-                  : `https://www.webtoons.com${href}`;
-
-                comics.push(
-                  new Comic({
-                    id: fullUrl, // Use the full URL as the ID
-                    title: title,
-                    subTitle: author,
-                    cover: cover,
-                    tags: [],
-                    description: "",
-                  }),
-                );
+                  comics.push(
+                    new Comic({
+                      id: this.extractWebtoonPathAndId(fullUrl),
+                      title: title,
+                      subTitle: author,
+                      cover: cover,
+                      tags: [],
+                      description: "",
+                    }),
+                  );
+                }
               }
-            }
 
-            results.push({
-              title: "Latest Updates",
-              comics: comics,
-              viewMore: {
-                page: "category",
-                attributes: {
-                  category: "latest",
-                  param: day,
+              results.push({
+                title: "Trending",
+                comics: comics,
+                viewMore: {
+                  page: "category",
+                  attributes: {
+                    category: "trending",
+                    param: null,
+                  },
                 },
-              },
+              });
+
+              document.dispose();
+            }
+          } catch (e) {
+            console.error(["Error loading Trending section:", e]);
+          }
+
+          // Add latest updates as the last section
+          try {
+            const day = [
+              "sunday",
+              "monday",
+              "tuesday",
+              "wednesday",
+              "thursday",
+              "friday",
+              "saturday",
+            ][new Date().getDay()];
+            const latestUrl = `${baseUrl}originals/${day}?sortOrder=UPDATE`;
+
+            const res = await Network.get(latestUrl, {
+              Referer: `https://www.webtoons.com/${lang}/`,
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
             });
 
-            document.dispose();
-          }
-        } catch (e) {
-          console.error(["Error loading Latest Updates section:", e]);
-        }
+            if (res.status === 200) {
+              const document = new HtmlDocument(res.body);
+              const comicElements =
+                document.querySelectorAll(".webtoon_list li a");
 
-        return results;
+              const comics = [];
+              for (const element of comicElements) {
+                const titleElement = element.querySelector(".title");
+                const coverElement = element.querySelector("img");
+                const authorElement = element.querySelector(".author");
+
+                if (titleElement && coverElement) {
+                  const title = titleElement.text;
+                  const author = authorElement ? authorElement.text : "";
+                  const cover =
+                    coverElement.attributes["src"] ||
+                    coverElement.attributes["data-url"];
+                  const href = element.attributes["href"];
+                  const fullUrl = href.startsWith("http")
+                    ? href
+                    : `https://www.webtoons.com${href}`;
+
+                  comics.push(
+                    new Comic({
+                      id: fullUrl, // Use the full URL as the ID
+                      title: title,
+                      subTitle: author,
+                      cover: cover,
+                      tags: [],
+                      description: "",
+                    }),
+                  );
+                }
+              }
+
+              results.push({
+                title: "Latest Updates",
+                comics: comics,
+                viewMore: {
+                  page: "category",
+                  attributes: {
+                    category: "latest",
+                    param: day,
+                  },
+                },
+              });
+
+              document.dispose();
+            }
+          } catch (e) {
+            console.error(["Error loading Latest Updates section:", e]);
+          }
+
+          return results;
+        });
       },
 
       /**
@@ -824,130 +1042,133 @@ class WebtoonComicSource extends ComicSource {
      * @returns {Promise<ComicDetails>}
      */
     loadInfo: async (id) => {
-      // id is xxx/xxx:title_no_number
-      // Extract title_no from the URL using regex
-      const titleNo = id.split(":")[1];
+      const cacheKey = `comic.${id}.info`;
+      return this._withCache(cacheKey, async () => {
+        // id is xxx/xxx:title_no_number
+        // Extract title_no from the URL using regex
+        const titleNo = id.split(":")[1];
 
-      if (!titleNo) {
-        throw "Could not extract title_no from the provided URL";
-      }
+        if (!titleNo) {
+          throw "Could not extract title_no from the provided URL";
+        }
 
-      const url = this.generateEpisodeUrl(id); // Use the passed URL directly
-      const lang = url.split("/")[3] || this.loadSetting("language") || "en"; // Extract language from URL
+        const url = this.generateEpisodeUrl(id); // Use the passed URL directly
+        const lang = url.split("/")[3] || this.loadSetting("language") || "en"; // Extract language from URL
 
-      // Set up cookies first to ensure proper access
-      Network.setCookies("https://m.webtoons.com", [
-        new Cookie({
-          name: "ageGatePass",
-          value: "true",
-          domain: "webtoons.com",
-        }),
-        new Cookie({
-          name: "locale",
-          value: lang,
-          domain: "webtoons.com",
-        }),
-        new Cookie({
-          name: "needGDPR",
-          value: "false",
-          domain: "webtoons.com",
-        }),
-      ]);
+        // Set up cookies first to ensure proper access
+        Network.setCookies("https://m.webtoons.com", [
+          new Cookie({
+            name: "ageGatePass",
+            value: "true",
+            domain: "webtoons.com",
+          }),
+          new Cookie({
+            name: "locale",
+            value: lang,
+            domain: "webtoons.com",
+          }),
+          new Cookie({
+            name: "needGDPR",
+            value: "false",
+            domain: "webtoons.com",
+          }),
+        ]);
 
-      // Get comic details from the web page
-      const webRes = await Network.get(url, {
-        Referer: `https://m.webtoons.com/${lang}/`,
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      });
-
-      if (webRes.status !== 200) {
-        throw `Invalid status code: ${webRes.status}`;
-      }
-
-      const webDocument = new HtmlDocument(webRes.body);
-
-      // Extract comic details from web page
-      const titleElement = webDocument.querySelector(
-        "h1.subj, h3.subj, strong.subject",
-      );
-
-      const coverElement = webDocument.querySelector(".img_area img");
-      const descriptionElement = webDocument.querySelector(
-        ".info_area a.summary",
-      );
-      const genreElement = webDocument.querySelector(".tag_box .tag");
-      const statusElement = webDocument.querySelector(".details_area .value");
-
-      const title = titleElement ? titleElement.text : "Unknown Title";
-
-      // Extract author and artist if available
-      let author = "Unknown Author";
-      let artist = "Unknown Artist";
-
-      const authorArea = webDocument
-        .querySelector(".author")
-        .text.split(",")
-        .map((x) => x.trim());
-      if (authorArea) {
-        author = authorArea.join(", ") || "Unknown Author";
-        artist = authorArea;
-      }
-
-      const cover = coverElement
-        ? coverElement.attributes["src"] ||
-          coverElement.attributes["data-url"] ||
-          webDocument.querySelector('head meta[property="og:image"]')
-            ?.attributes["content"]
-        : "";
-
-      const description = descriptionElement ? descriptionElement.text : "";
-      const genre = genreElement ? genreElement.text : "";
-      const statusText = statusElement ? statusElement.text : "";
-
-      // Determine if this is a canvas comic by checking the URL or page content
-      const isCanvas = url.includes("challenge");
-      const type = isCanvas ? "canvas" : "webtoon";
-
-      // Now get chapters using the mobile API as requested
-      const apiUrl = `https://m.webtoons.com/api/v1/${type}/${titleNo}/episodes?pageSize=99999`;
-
-      const response = await fetch(apiUrl, {
-        headers: {
-          Referer: "https://m.webtoons.com/",
+        // Get comic details from the web page
+        const webRes = await Network.get(url, {
+          Referer: `https://m.webtoons.com/${lang}/`,
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
-      });
+        });
 
-      if (!response.ok) {
-        throw `Invalid status code: ${response.status}`;
-      }
-
-      const data = await response.json();
-      const episodeList = data.result.episodeList || [];
-      const chapters = {};
-
-      // Process episodes to extract chapter information
-      episodeList.map((episode) => {
-        const epId = episode.episodeNo; // Use viewerLink as the episode ID
-        const epTitle = episode.episodeTitle;
-        if (epId && epTitle) {
-          chapters[`${epId}-${epTitle}`] = epTitle;
+        if (webRes.status !== 200) {
+          throw `Invalid status code: ${webRes.status}`;
         }
-      });
 
-      webDocument.dispose();
+        const webDocument = new HtmlDocument(webRes.body);
 
-      return new ComicDetails({
-        title: title,
-        subTitle: author,
-        cover: cover,
-        description: description,
-        tags: genre ? { 标签: [genre], 作者: artist } : {},
-        chapters: chapters,
-        updateTime: statusText,
-        url: url,
+        // Extract comic details from web page
+        const titleElement = webDocument.querySelector(
+          "h1.subj, h3.subj, strong.subject",
+        );
+
+        const coverElement = webDocument.querySelector(".img_area img");
+        const descriptionElement = webDocument.querySelector(
+          ".info_area a.summary",
+        );
+        const genreElement = webDocument.querySelector(".tag_box .tag");
+        const statusElement = webDocument.querySelector(".details_area .value");
+
+        const title = titleElement ? titleElement.text : "Unknown Title";
+
+        // Extract author and artist if available
+        let author = "Unknown Author";
+        let artist = "Unknown Artist";
+
+        const authorArea = webDocument
+          .querySelector(".author")
+          .text.split(",")
+          .map((x) => x.trim());
+        if (authorArea) {
+          author = authorArea.join(", ") || "Unknown Author";
+          artist = authorArea;
+        }
+
+        const cover = coverElement
+          ? coverElement.attributes["src"] ||
+            coverElement.attributes["data-url"] ||
+            webDocument.querySelector('head meta[property="og:image"]')
+              ?.attributes["content"]
+          : "";
+
+        const description = descriptionElement ? descriptionElement.text : "";
+        const genre = genreElement ? genreElement.text : "";
+        const statusText = statusElement ? statusElement.text : "";
+
+        // Determine if this is a canvas comic by checking the URL or page content
+        const isCanvas = url.includes("challenge");
+        const type = isCanvas ? "canvas" : "webtoon";
+
+        // Now get chapters using the mobile API as requested
+        const apiUrl = `https://m.webtoons.com/api/v1/${type}/${titleNo}/episodes?pageSize=99999`;
+
+        const response = await fetch(apiUrl, {
+          headers: {
+            Referer: "https://m.webtoons.com/",
+            "User-Agent":
+              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          },
+        });
+
+        if (!response.ok) {
+          throw `Invalid status code: ${response.status}`;
+        }
+
+        const data = await response.json();
+        const episodeList = data.result.episodeList || [];
+        const chapters = {};
+
+        // Process episodes to extract chapter information
+        episodeList.map((episode) => {
+          const epId = episode.episodeNo; // Use viewerLink as the episode ID
+          const epTitle = episode.episodeTitle;
+          if (epId && epTitle) {
+            chapters[`${epId}-${epTitle}`] = epTitle;
+          }
+        });
+
+        webDocument.dispose();
+
+        return new ComicDetails({
+          title: title,
+          subTitle: author,
+          cover: cover,
+          description: description,
+          tags: genre ? { 标签: [genre], 作者: artist } : {},
+          chapters: chapters,
+          updateTime: statusText,
+          url: url,
+        });
       });
     },
 
@@ -977,58 +1198,33 @@ class WebtoonComicSource extends ComicSource {
      * @returns {Promise<{images: string[]}>}
      */
     loadEp: async (comicId, epId) => {
-      // Since comicId is now the full URL and epId is the episode viewer URL from API,
-      // we can use epId directly as the viewer URL
+      const cacheKey = `comic.${comicId}.ep.${epId}`;
+      return this._withCache(cacheKey, async () => {
+        // Since comicId is now the full URL and epId is the episode viewer URL from API,
+        // we can use epId directly as the viewer URL
 
-      const viewerUrl = this.generateEpisodeUrl(comicId, epId); // epId is the viewer link from the API
+        const viewerUrl = this.generateEpisodeUrl(comicId, epId); // epId is the viewer link from the API
 
-      // Load the viewer page to get the images
-      const viewerRes = await Network.get(viewerUrl, {
-        Referer: comicId, // Use the comic URL as referer
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      });
+        // Load the viewer page to get the images
+        const viewerRes = await Network.get(viewerUrl, {
+          Referer: comicId, // Use the comic URL as referer
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        });
 
-      if (viewerRes.status !== 200) {
-        throw `Invalid status code: ${viewerRes.status}`;
-      }
-
-      const document = new HtmlDocument(viewerRes.body);
-      const imageElements = document.querySelectorAll("#_imageList img");
-
-      const images = [];
-      for (const element of imageElements) {
-        const imageUrl =
-          element.attributes["data-url"] || element.attributes["src"];
-        if (imageUrl) {
-          // Apply max quality setting if enabled
-          if (this.loadSetting("maxQuality")) {
-            // Check if the URL contains type=q90 and remove it to get higher quality
-            if (imageUrl.includes("type=q90")) {
-              // Remove type=q90 parameter from URL
-              const cleanedUrl = imageUrl
-                .replace(/[?&]type=q90/, "")
-                .replace(/\?&/, "?");
-              images.push(cleanedUrl);
-            } else {
-              images.push(imageUrl);
-            }
-          } else {
-            images.push(imageUrl);
-          }
+        if (viewerRes.status !== 200) {
+          throw `Invalid status code: ${viewerRes.status}`;
         }
-      }
 
-      // Handle motion comics which might have different structure
-      if (images.length === 0) {
-        // Look for motion comic elements
-        const motionElements = document.querySelectorAll(
-          "div.viewer_img > img",
-        );
-        for (const element of motionElements) {
+        const document = new HtmlDocument(viewerRes.body);
+        const imageElements = document.querySelectorAll("#_imageList img");
+
+        const images = [];
+        for (const element of imageElements) {
           const imageUrl =
             element.attributes["data-url"] || element.attributes["src"];
           if (imageUrl) {
+            // Apply max quality setting if enabled
             if (this.loadSetting("maxQuality")) {
               // Check if the URL contains type=q90 and remove it to get higher quality
               if (imageUrl.includes("type=q90")) {
@@ -1045,27 +1241,55 @@ class WebtoonComicSource extends ComicSource {
             }
           }
         }
-      }
 
-      // Add author's notes if enabled
-      if (this.loadSetting("showAuthorsNotes")) {
-        const noteElement = document.querySelector(
-          "div.creator_note p.author_text",
-        );
-        if (noteElement) {
-          const note = noteElement.text;
-          if (note && note.trim().length > 0) {
-            // In a real implementation, we would handle notes differently
-            console.log("Author's note:", note);
+        // Handle motion comics which might have different structure
+        if (images.length === 0) {
+          // Look for motion comic elements
+          const motionElements = document.querySelectorAll(
+            "div.viewer_img > img",
+          );
+          for (const element of motionElements) {
+            const imageUrl =
+              element.attributes["data-url"] || element.attributes["src"];
+            if (imageUrl) {
+              if (this.loadSetting("maxQuality")) {
+                // Check if the URL contains type=q90 and remove it to get higher quality
+                if (imageUrl.includes("type=q90")) {
+                  // Remove type=q90 parameter from URL
+                  const cleanedUrl = imageUrl
+                    .replace(/[?&]type=q90/, "")
+                    .replace(/\?&/, "?");
+                  images.push(cleanedUrl);
+                } else {
+                  images.push(imageUrl);
+                }
+              } else {
+                images.push(imageUrl);
+              }
+            }
           }
         }
-      }
 
-      document.dispose();
+        // Add author's notes if enabled
+        if (this.loadSetting("showAuthorsNotes")) {
+          const noteElement = document.querySelector(
+            "div.creator_note p.author_text",
+          );
+          if (noteElement) {
+            const note = noteElement.text;
+            if (note && note.trim().length > 0) {
+              // In a real implementation, we would handle notes differently
+              console.log("Author's note:", note);
+            }
+          }
+        }
 
-      return {
-        images: images,
-      };
+        document.dispose();
+
+        return {
+          images: images,
+        };
+      });
     },
 
     /**
@@ -1137,6 +1361,23 @@ class WebtoonComicSource extends ComicSource {
         },
       ],
       default: "en",
+    },
+    enableCache: {
+      title: "Enable Cache",
+      type: "switch",
+      default: true,
+    },
+    cacheDuration: {
+      title: "Cache Duration (hours)",
+      type: "input",
+      default: "1",
+    },
+    manageCache: {
+      title: "Manage Cache",
+      type: "callback",
+      callback: () => {
+        this._manageCacheAction();
+      },
     },
     maxQuality: {
       title: "Maximum Image Quality",

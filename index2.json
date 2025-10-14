@@ -114,13 +114,13 @@
     "name": "漫蛙",
     "fileName": "manwa.js",
     "key": "manwa",
-    "version": "1.0.7"
+    "version": "1.0.8"
   },
   {
     "name": "Manhwa 18 CC",
     "fileName": "manhwa18cc.js",
     "key": "manhwa18cc",
-    "version": "1.0.5"
+    "version": "1.0.6"
   },
   {
     "name": "늑대닷컴",
@@ -132,31 +132,25 @@
     "name": "Goda",
     "fileName": "goda.js",
     "key": "goda",
-    "version": "1.2.6"
+    "version": "1.2.7"
   },
   {
     "name": "Manhwa Raw",
     "fileName": "manhwa_raw.js",
     "key": "manhwa_raw",
-    "version": "1.0.7"
+    "version": "1.0.8"
   },
   {
     "name": "Webtoon",
     "fileName": "webtoon.js",
     "key": "webtoon",
-    "version": "1.0.3"
-  },
-  {
-    "name": "漫画鱼",
-    "fileName": "manhuayu5.js",
-    "key": "manhuayu5",
-    "version": "1.0.0"
+    "version": "1.0.4"
   },
   {
     "name": "嗨皮漫画",
     "fileName": "happy.js",
     "key": "happy",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   {
     "name": "Manga District",

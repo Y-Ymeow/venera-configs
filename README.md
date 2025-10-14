@@ -11,19 +11,21 @@ Configuration file repository for venera
 - Goda
 - Manhwa Raw
 - Webtoon
-- ManHuayu
 - Manga District
-- 嗨皮漫画
+- 嗨피漫画
 
 ## 通过 JSON 自动添加漫画源
 
-可通过 `index2.json` 文件自动添加漫画源，无需手动配置。直接使用以下原始链接导入：
+可通过 `index2.json` 파일自动添加漫画源，无需手动配置。直接使用以下原始链接导入：
 
 ```
 https://raw.githubusercontent.com/Y-Ymeow/venera-configs/refs/heads/main/index2.json
 ```
 
 **注意事项：**
+
+> 部分漫画源添加了缓存功能以提高加载速度，如果您不需要此功能，可以在应用设置中关闭。请注意，缓存数据不会自动清理，如需清理请手动操作。
+
 - 仓库每天自动同步源仓库，确保源列表保持最新
 - 如访问速度较慢，可使用 [gh-proxy](https://ghproxy.com/) 加速：
   ```

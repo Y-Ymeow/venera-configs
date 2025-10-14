@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.5";
+  version = "1.0.6";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -14,72 +14,289 @@ class Manhwa18cc extends ComicSource {
     // 初始化逻辑，例如加载设置或数据
   }
 
+  // --- Cache Implementation ---
+  async _withCache(key, fetcher) {
+    const enableCache = this.loadSetting("enableCache");
+    if (!enableCache) {
+      return await fetcher();
+    }
+
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const cachedTimestamp = get(timestamps, key);
+    const data = this.loadData("cache_data") || {};
+    const cachedData = get(data, key);
+
+    if (cachedTimestamp && cachedData) {
+      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
+      if (!isExpired) {
+        console.log(`[Cache] HIT: ${key}`);
+        return cachedData;
+      }
+    }
+
+    try {
+      console.log(
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+      );
+      const newData = await fetcher();
+
+      const set = (obj, p, val) => {
+        const parts = p.split(".");
+        const last = parts.pop();
+        let current = obj;
+        for (const part of parts) {
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        current[last] = val;
+        return obj;
+      };
+
+      let allTimestamps = this.loadData("cache_timestamps") || {};
+      let allData = this.loadData("cache_data") || {};
+      let allKeys = this.loadData("cache_keys") || {};
+
+      set(allTimestamps, key, Date.now());
+      set(allData, key, newData);
+      set(allKeys, key, true);
+
+      this.saveData("cache_timestamps", allTimestamps);
+      this.saveData("cache_data", allData);
+      this.saveData("cache_keys", allKeys);
+
+      return newData;
+    } catch (e) {
+      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
+      if (cachedData) {
+        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        return cachedData;
+      }
+      throw e;
+    }
+  }
+
+  _getAllCacheKeys() {
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const deletableKeys = [];
+    if (timestamps.explore) {
+      Object.keys(timestamps.explore).forEach((lang) =>
+        deletableKeys.push(`explore.${lang}`)
+      );
+    }
+    if (timestamps.comic) {
+      Object.keys(timestamps.comic).forEach((id) =>
+        deletableKeys.push(`comic.${id}`)
+      );
+    }
+    return deletableKeys;
+  }
+
+  async _manageCacheAction() {
+    const options = [
+      "Clear All Cache",
+      "Clear Expired Cache",
+      "Clear Specific Cache",
+    ];
+    const selected = await UI.showSelectDialog("Cache Management", options);
+
+    if (selected === 0) {
+      // Clear All
+      this.deleteData("cache_timestamps");
+      this.deleteData("cache_data");
+      this.deleteData("cache_keys");
+      UI.showMessage("Manhwa18cc cache cleared.");
+    } else if (selected === 1) {
+      // Clear Expired
+      const count = this._clearExpiredCache();
+      UI.showMessage(`Cleared ${count} expired cache items.`);
+    } else if (selected === 2) {
+      // Clear Specific
+      const allKeys = this._getAllCacheKeys();
+
+      if (allKeys.length === 0) {
+        UI.showMessage("No cache entries to clear.");
+        return;
+      }
+
+      const selectedKeyIndex = await UI.showSelectDialog(
+        "Select cache key to clear",
+        allKeys
+      );
+
+      if (selectedKeyIndex !== null) {
+        const keyToClear = allKeys[selectedKeyIndex];
+        this._clearCacheKey(keyToClear);
+        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
+      }
+    }
+  }
+
+  _clearCacheKey(key) {
+    const unset = (obj, p) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current || typeof current[part] !== "object") {
+          return;
+        }
+        current = current[part];
+      }
+      if (current) {
+        delete current[last];
+      }
+    };
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+    let keys = this.loadData("cache_keys") || {};
+
+    unset(timestamps, key);
+    unset(data, key);
+    unset(keys, key);
+
+    this.saveData("cache_timestamps", timestamps);
+    this.saveData("cache_data", data);
+    this.saveData("cache_keys", keys);
+  }
+
+  _clearExpiredCache() {
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+
+    let newTimestamps = {};
+    let newData = {};
+    let newKeys = {};
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+    const set = (obj, p, val) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      current[last] = val;
+      return obj;
+    };
+
+    const getAllKeys = (obj, prefix = "") => {
+      return Object.keys(obj).reduce((res, el) => {
+        if (typeof obj[el] === "object" && obj[el] !== null) {
+          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
+        }
+        return [...res, prefix + el];
+      }, []);
+    };
+
+    const allKeys = getAllKeys(timestamps);
+    let clearedCount = 0;
+
+    for (const key of allKeys) {
+      const timestamp = get(timestamps, key);
+      const isExpired = Date.now() - timestamp > CACHE_DURATION;
+
+      if (!isExpired) {
+        set(newTimestamps, key, timestamp);
+        set(newData, key, get(data, key));
+        set(newKeys, key, true);
+      } else {
+        clearedCount++;
+      }
+    }
+
+    this.saveData("cache_timestamps", newTimestamps);
+    this.saveData("cache_data", newData);
+    this.saveData("cache_keys", newKeys);
+
+    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
+    return clearedCount;
+  }
+
   explore = [
     // 探索页配置
     {
       type: "multiPageComicList",
       title: "Manhwa 18",
       load: async (page) => {
-        // 加载韩文漫画列表
-        const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-        const url = `${baseUrl}/raw/${page}`;
+        const cacheKey = `explore.${this.loadSetting("baseUrl")}`;
+        return this._withCache(cacheKey, async () => {
+          // 加载韩文漫画列表
+          const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+          const url = `${baseUrl}/raw/${page}`;
 
-        const response = await Network.get(url);
-        if (response.status !== 200) {
-          throw new Error(`Failed to load Korean comics: ${response.status}`);
-        }
+          const response = await Network.get(url);
+          if (response.status !== 200) {
+            throw new Error(`Failed to load Korean comics: ${response.status}`);
+          }
 
-        const html = response.body;
-        const doc = new HtmlDocument(html);
+          const html = response.body;
+          const doc = new HtmlDocument(html);
 
-        // Parse manga items
-        const comics = [];
-        const mangaItems = doc.querySelectorAll("div.manga-item");
+          // Parse manga items
+          const comics = [];
+          const mangaItems = doc.querySelectorAll("div.manga-item");
 
-        for (const item of mangaItems) {
-          const linkElement = item.querySelector("div.data a");
-          if (!linkElement) continue;
+          for (const item of mangaItems) {
+            const linkElement = item.querySelector("div.data a");
+            if (!linkElement) continue;
 
-          const href = linkElement.attributes.href;
-          const title = linkElement.text.trim();
-          const coverImg = item.querySelector("img");
-          let cover = "";
-          if (coverImg) {
-            cover =
-              coverImg.attributes.src || coverImg.attributes["data-src"] || "";
-            // Ensure the cover URL is absolute
-            if (cover.startsWith("//")) {
-              cover = "https:" + cover;
-            } else if (cover.startsWith("/")) {
-              const baseUrl =
-                this.loadSetting("baseUrl") || "https://manhwa18.cc";
-              cover = baseUrl + cover;
+            const href = linkElement.attributes.href;
+            const title = linkElement.text.trim();
+            const coverImg = item.querySelector("img");
+            let cover = "";
+            if (coverImg) {
+              cover =
+                coverImg.attributes.src || coverImg.attributes["data-src"] || "";
+              // Ensure the cover URL is absolute
+              if (cover.startsWith("//")) {
+                cover = "https" + cover;
+              } else if (cover.startsWith("/")) {
+                const baseUrl =
+                  this.loadSetting("baseUrl") || "https://manhwa18.cc";
+                cover = baseUrl + cover;
+              }
+            }
+
+            if (href && title) {
+              // Extract comic ID from URL
+              const match = href.match(/\/(webtoon|raw)\/([^\/\?]+)/);
+              const comicId = match ? match[2] : href;
+
+              comics.push(
+                new Comic({
+                  id: comicId,
+                  title: title,
+                  cover: cover,
+                  url: href,
+                }),
+              );
             }
           }
 
-          if (href && title) {
-            // Extract comic ID from URL
-            const match = href.match(/\/(webtoon|raw)\/([^\/\?]+)/);
-            const comicId = match ? match[2] : href;
+          // Check if there are more pages
+          const hasNext = !!doc.querySelector("ul.pagination li.next a");
 
-            comics.push(
-              new Comic({
-                id: comicId,
-                title: title,
-                cover: cover,
-                url: href,
-              }),
-            );
-          }
-        }
-
-        // Check if there are more pages
-        const hasNext = !!doc.querySelector("ul.pagination li.next a");
-
-        return {
-          comics: comics,
-          maxPage: hasNext ? page + 1 : 1,
-        };
+          return {
+            comics: comics,
+            maxPage: hasNext ? page + 1 : 1,
+          };
+        });
       },
     },
   ];
@@ -161,148 +378,154 @@ class Manhwa18cc extends ComicSource {
 
   comic = {
     loadInfo: async (comicId) => {
-      // 加载漫画详情
-      const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-      const url = `${baseUrl}/webtoon/${comicId}`;
+      const cacheKey = `comic.${comicId}.info`;
+      return this._withCache(cacheKey, async () => {
+        // 加载漫画详情
+        const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+        const url = `${baseUrl}/webtoon/${comicId}`;
 
-      const response = await Network.get(url);
-      if (response.status !== 200) {
-        throw new Error(`Failed to load comic info: ${response.status}`);
-      }
-
-      const html = response.body;
-      const doc = new HtmlDocument(html);
-
-      // Extract comic details
-      const titleElement = doc.querySelector(".post-title h1");
-      const span = titleElement.querySelector("span");
-      const title = titleElement.text.replace(span.text, "").trim();
-
-      const subTitleElement = doc.querySelector(
-        ".post-content > .post-content_item",
-      );
-      const subtitle = subTitleElement
-        .querySelector(".summary-content")
-        ?.text.trim();
-
-      let cover = "";
-      const coverElement = doc.querySelector(".centernav .summary_image img");
-      if (coverElement) {
-        cover = coverElement.attributes.src;
-        // Ensure the cover URL is absolute
-        if (cover.startsWith("//")) {
-          cover = "https:" + cover;
-        } else if (cover.startsWith("/")) {
-          const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-          cover = baseUrl + cover;
-        }
-      }
-
-      const descriptionElement = doc.querySelector(
-        "div.panel-story-description div.dsct",
-      );
-      const description = descriptionElement
-        ? descriptionElement.text.trim()
-        : "";
-
-      // Extract authors
-      const authors = [];
-      const authorElements = doc.querySelectorAll(".author-content a");
-      for (const authorEl of authorElements) {
-        authors.push(authorEl.text.trim());
-      }
-
-      // Extract tags
-      const tags = [];
-      const tagElements = doc.querySelectorAll(
-        ".genres-content a, .artist-content a",
-      );
-      for (const tagEl of tagElements) {
-        tags.push(tagEl.text.trim());
-      }
-
-      // Extract chapters
-      const chapters = new Map();
-      const chapterElements = doc.querySelectorAll("li.a-h").reverse();
-
-      let updateTime = doc
-        .querySelector("li.a-h span.chapter-time")
-        .text.trim();
-
-      let updateTimeDate = new Date(updateTime);
-      updateTimeDate.setDate(updateTimeDate.getDate() + 1);
-      updateTime = updateTimeDate.toISOString().slice(0, 10);
-
-      for (let i = 0; i < chapterElements.length; i++) {
-        const chapterEl = chapterElements[i];
-        const linkElement = chapterEl.querySelector("a");
-        if (!linkElement) continue;
-
-        const href = linkElement.attributes.href;
-        const chapterTitle = linkElement.text.trim() || `Chapter ${i + 1}`;
-
-        // Extract chapter ID from URL
-        const chapterMatch = href.match(/\/chapter\/([^\/\?]+)/);
-        const chapterId = chapterMatch ? chapterMatch[1] : href;
-
-        // Extract date if available
-        let date = "";
-        const dateElement = chapterEl.querySelector("span.chapter-time");
-        if (dateElement) {
-          date = dateElement.text.trim();
+        const response = await Network.get(url);
+        if (response.status !== 200) {
+          throw new Error(`Failed to load comic info: ${response.status}`);
         }
 
-        chapters.set(chapterId, chapterTitle);
-      }
+        const html = response.body;
+        const doc = new HtmlDocument(html);
 
-      return new ComicDetails({
-        id: comicId,
-        title: title,
-        subtitle,
-        description: description,
-        cover: cover,
-        chapters: chapters,
-        tags: {
-          作者: authors,
-          标签: tags,
-        },
-        updateTime,
-        // Artist is typically not separately listed
+        // Extract comic details
+        const titleElement = doc.querySelector(".post-title h1");
+        const span = titleElement.querySelector("span");
+        const title = titleElement.text.replace(span.text, "").trim();
+
+        const subTitleElement = doc.querySelector(
+          ".post-content > .post-content_item",
+        );
+        const subtitle = subTitleElement
+          .querySelector(".summary-content")
+          ?.text.trim();
+
+        let cover = "";
+        const coverElement = doc.querySelector(".centernav .summary_image img");
+        if (coverElement) {
+          cover = coverElement.attributes.src;
+          // Ensure the cover URL is absolute
+          if (cover.startsWith("//")) {
+            cover = "https:" + cover;
+          } else if (cover.startsWith("/")) {
+            const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+            cover = baseUrl + cover;
+          }
+        }
+
+        const descriptionElement = doc.querySelector(
+          "div.panel-story-description div.dsct",
+        );
+        const description = descriptionElement
+          ? descriptionElement.text.trim()
+          : "";
+
+        // Extract authors
+        const authors = [];
+        const authorElements = doc.querySelectorAll(".author-content a");
+        for (const authorEl of authorElements) {
+          authors.push(authorEl.text.trim());
+        }
+
+        // Extract tags
+        const tags = [];
+        const tagElements = doc.querySelectorAll(
+          ".genres-content a, .artist-content a",
+        );
+        for (const tagEl of tagElements) {
+          tags.push(tagEl.text.trim());
+        }
+
+        // Extract chapters
+        const chapters = new Map();
+        const chapterElements = doc.querySelectorAll("li.a-h").reverse();
+
+        let updateTime = doc
+          .querySelector("li.a-h span.chapter-time")
+          .text.trim();
+
+        let updateTimeDate = new Date(updateTime);
+        updateTimeDate.setDate(updateTimeDate.getDate() + 1);
+        updateTime = updateTimeDate.toISOString().slice(0, 10);
+
+        for (let i = 0; i < chapterElements.length; i++) {
+          const chapterEl = chapterElements[i];
+          const linkElement = chapterEl.querySelector("a");
+          if (!linkElement) continue;
+
+          const href = linkElement.attributes.href;
+          const chapterTitle = linkElement.text.trim() || `Chapter ${i + 1}`;
+
+          // Extract chapter ID from URL
+          const chapterMatch = href.match(/\/chapter\/([^\/\?]+)/);
+          const chapterId = chapterMatch ? chapterMatch[1] : href;
+
+          // Extract date if available
+          let date = "";
+          const dateElement = chapterEl.querySelector("span.chapter-time");
+          if (dateElement) {
+            date = dateElement.text.trim();
+          }
+
+          chapters.set(chapterId, chapterTitle);
+        }
+
+        return new ComicDetails({
+          id: comicId,
+          title: title,
+          subtitle,
+          description: description,
+          cover: cover,
+          chapters: chapters,
+          tags: {
+            作者: authors,
+            标签: tags,
+          },
+          updateTime,
+          // Artist is typically not separately listed
+        });
       });
     },
     loadEp: async (comicId, chapterId) => {
-      // 加载章节图片
-      const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-      const url = `${baseUrl}/${chapterId}`;
+      const cacheKey = `comic.${comicId}.ep.${chapterId}`;
+      return this._withCache(cacheKey, async () => {
+        // 加载章节图片
+        const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+        const url = `${baseUrl}/${chapterId}`;
 
-      const response = await Network.get(url);
-      // if (response.status !== 200) {
-      //   throw new Error(`Failed to load chapter images: ${response.status}`);
-      // }
+        const response = await Network.get(url);
+        // if (response.status !== 200) {
+        //   throw new Error(`Failed to load chapter images: ${response.status}`);
+        // }
 
-      const html = response.body;
-      const doc = new HtmlDocument(html);
+        const html = response.body;
+        const doc = new HtmlDocument(html);
 
-      // Extract images from the chapter
-      const images = [];
-      const imageElements = doc.querySelectorAll("div.read-content img");
+        // Extract images from the chapter
+        const images = [];
+        const imageElements = doc.querySelectorAll("div.read-content img");
 
-      for (const imgEl of imageElements) {
-        let src = imgEl.attributes.src || imgEl.attributes["data-src"] || "";
+        for (const imgEl of imageElements) {
+          let src = imgEl.attributes.src || imgEl.attributes["data-src"] || "";
 
-        // Ensure the image URL is absolute
-        if (src.startsWith("//")) {
-          src = "https:" + src;
-        } else if (src.startsWith("/")) {
-          src = baseUrl + src;
+          // Ensure the image URL is absolute
+          if (src.startsWith("//")) {
+            src = "https:" + src;
+          } else if (src.startsWith("/")) {
+            src = baseUrl + src;
+          }
+
+          if (src) {
+            images.push(src);
+          }
         }
 
-        if (src) {
-          images.push(src);
-        }
-      }
-
-      return { images };
+        return { images };
+      });
     },
 
     onImageLoad: (url, comicId, epId) => {
@@ -323,6 +546,23 @@ class Manhwa18cc extends ComicSource {
       title: "基础 URL",
       type: "input",
       default: "https://manhwa18.cc",
+    },
+    enableCache: {
+      title: "Enable Cache",
+      type: "switch",
+      default: true,
+    },
+    cacheDuration: {
+      title: "Cache Duration (hours)",
+      type: "input",
+      default: "1",
+    },
+    manageCache: {
+      title: "Manage Cache",
+      type: "callback",
+      callback: () => {
+        this._manageCacheAction();
+      },
     },
   };
 }

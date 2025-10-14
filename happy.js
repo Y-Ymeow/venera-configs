@@ -1,49 +1,268 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.2";
+  version = "1.0.4";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
 
-  init() {}
+  // --- Cache Implementation ---
+  async _withCache(key, fetcher) {
+    const enableCache = this.loadSetting("enableCache");
+    if (!enableCache) {
+      return await fetcher();
+    }
+
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const cachedTimestamp = get(timestamps, key);
+    const data = this.loadData("cache_data") || {};
+    const cachedData = get(data, key);
+
+    if (cachedTimestamp && cachedData) {
+      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
+      if (!isExpired) {
+        console.log(`[Cache] HIT: ${key}`);
+        return cachedData;
+      }
+    }
+
+    try {
+      console.log(
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
+      );
+      const newData = await fetcher();
+
+      const set = (obj, p, val) => {
+        const parts = p.split(".");
+        const last = parts.pop();
+        let current = obj;
+        for (const part of parts) {
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        current[last] = val;
+        return obj;
+      };
+
+      let allTimestamps = this.loadData("cache_timestamps") || {};
+      let allData = this.loadData("cache_data") || {};
+      let allKeys = this.loadData("cache_keys") || {};
+
+      set(allTimestamps, key, Date.now());
+      set(allData, key, newData);
+      set(allKeys, key, true);
+
+      this.saveData("cache_timestamps", allTimestamps);
+      this.saveData("cache_data", allData);
+      this.saveData("cache_keys", allKeys);
+
+      return newData;
+    } catch (e) {
+      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
+      if (cachedData) {
+        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        return cachedData;
+      }
+      throw e;
+    }
+  }
+
+  _getAllCacheKeys() {
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const deletableKeys = [];
+    if (timestamps.explore) {
+      Object.keys(timestamps.explore).forEach((lang) =>
+        deletableKeys.push(`explore.${lang}`),
+      );
+    }
+    if (timestamps.comic) {
+      Object.keys(timestamps.comic).forEach((id) =>
+        deletableKeys.push(`comic.${id}`),
+      );
+    }
+    return deletableKeys;
+  }
+
+  async _manageCacheAction() {
+    const options = [
+      "Clear All Cache",
+      "Clear Expired Cache",
+      "Clear Specific Cache",
+    ];
+    const selected = await UI.showSelectDialog("Cache Management", options);
+
+    if (selected === 0) {
+      // Clear All
+      this.deleteData("cache_timestamps");
+      this.deleteData("cache_data");
+      this.deleteData("cache_keys");
+      UI.showMessage("Happy cache cleared.");
+    } else if (selected === 1) {
+      // Clear Expired
+      const count = this._clearExpiredCache();
+      UI.showMessage(`Cleared ${count} expired cache items.`);
+    } else if (selected === 2) {
+      // Clear Specific
+      const allKeys = this._getAllCacheKeys();
+
+      if (allKeys.length === 0) {
+        UI.showMessage("No cache entries to clear.");
+        return;
+      }
+
+      const selectedKeyIndex = await UI.showSelectDialog(
+        "Select cache key to clear",
+        allKeys,
+      );
+
+      if (selectedKeyIndex !== null) {
+        const keyToClear = allKeys[selectedKeyIndex];
+        this._clearCacheKey(keyToClear);
+        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
+      }
+    }
+  }
+
+  _clearCacheKey(key) {
+    const unset = (obj, p) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current || typeof current[part] !== "object") {
+          return;
+        }
+        current = current[part];
+      }
+      if (current) {
+        delete current[last];
+      }
+    };
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+    let keys = this.loadData("cache_keys") || {};
+
+    unset(timestamps, key);
+    unset(data, key);
+    unset(keys, key);
+
+    this.saveData("cache_timestamps", timestamps);
+    this.saveData("cache_data", data);
+    this.saveData("cache_keys", keys);
+  }
+
+  _clearExpiredCache() {
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+
+    let newTimestamps = {};
+    let newData = {};
+    let newKeys = {};
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+    const set = (obj, p, val) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      current[last] = val;
+      return obj;
+    };
+
+    const getAllKeys = (obj, prefix = "") => {
+      return Object.keys(obj).reduce((res, el) => {
+        if (typeof obj[el] === "object" && obj[el] !== null) {
+          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
+        }
+        return [...res, prefix + el];
+      }, []);
+    };
+
+    const allKeys = getAllKeys(timestamps);
+    let clearedCount = 0;
+
+    for (const key of allKeys) {
+      const timestamp = get(timestamps, key);
+      const isExpired = Date.now() - timestamp > CACHE_DURATION;
+
+      if (!isExpired) {
+        set(newTimestamps, key, timestamp);
+        set(newData, key, get(data, key));
+        set(newKeys, key, true);
+      } else {
+        clearedCount++;
+      }
+    }
+
+    this.saveData("cache_timestamps", newTimestamps);
+    this.saveData("cache_data", newData);
+    this.saveData("cache_keys", newKeys);
+
+    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
+    return clearedCount;
+  }
+
+  init() {
+    // Initialize the cache system
+  }
 
   explore = [
     {
       title: "嗨皮漫画",
       type: "multiPageComicList",
       load: async (page) => {
-        var res = await fetch(
-          "https://m.happymh.com/apis/c/index?pn=" +
-            page +
-            "&series_status=-1&order=last_date",
-          {
-            headers: {
-              "User-Agent":
-                this.loadSetting("ua") ||
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-              Referer: "https://m.happymh.com/latest",
-              Priority: "u=4",
-              "Sec-GPC": 1,
-              Connection: "keep-alive",
+        return this._withCache(`explore.page_${page}`, async () => {
+          var res = await fetch(
+            "https://m.happymh.com/apis/c/index?pn=" +
+              page +
+              "&series_status=-1&order=last_date",
+            {
+              headers: {
+                "User-Agent":
+                  this.loadSetting("ua") ||
+                  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                Referer: "https://m.happymh.com/latest",
+                Priority: "u=4",
+                "Sec-GPC": 1,
+                Connection: "keep-alive",
+              },
             },
-          },
-        );
-        if (res.status !== 200) {
-          throw new Error("Explore failed: " + res.status);
-        }
-        var data = await res.json();
-        var comics = [];
-        for (var i = 0; i < data.data.items.length; i++) {
-          var item = data.data.items[i];
-          var comic = this.parseComic(item);
-          comics.push(comic);
-        }
+          );
+          if (res.status !== 200) {
+            throw new Error("Explore failed: " + res.status);
+          }
 
-        return {
-          comics: comics,
-          maxPage: data.data.isEnd ? page : page + 1,
-        };
+          var data = await res.json();
+          var comics = [];
+          for (var i = 0; i < data.data.items.length; i++) {
+            var item = data.data.items[i];
+            var comic = this.parseComic(item);
+            comics.push(comic);
+          }
+
+          return {
+            comics: comics,
+            maxPage: data.data.isEnd ? page : page + 1,
+          };
+        });
       },
     },
   ];
@@ -62,6 +281,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "全部",
                 param: null,
+                title: "全部"
               },
             },
           },
@@ -72,6 +292,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "rexue",
                 param: null,
+                title: "热血"
               },
             },
           },
@@ -82,6 +303,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gedou",
                 param: null,
+                title: "格斗"
               },
             },
           },
@@ -92,6 +314,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "wuxia",
                 param: null,
+                title: "武侠"
               },
             },
           },
@@ -102,6 +325,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "mohuan",
                 param: null,
+                title: "魔幻"
               },
             },
           },
@@ -112,6 +336,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "mofa",
                 param: null,
+                title: "魔法"
               },
             },
           },
@@ -122,6 +347,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "maoxian",
                 param: null,
+                title: "冒险"
               },
             },
           },
@@ -132,6 +358,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "aiqing",
                 param: null,
+                title: "爱情"
               },
             },
           },
@@ -142,6 +369,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gaoxiao",
                 param: null,
+                title: "搞笑"
               },
             },
           },
@@ -152,6 +380,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xiaoyuan",
                 param: null,
+                title: "校园"
               },
             },
           },
@@ -162,6 +391,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "kehuan",
                 param: null,
+                title: "科幻"
               },
             },
           },
@@ -172,6 +402,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "hougong",
                 param: null,
+                title: "后宫"
               },
             },
           },
@@ -182,6 +413,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "lizhi",
                 param: null,
+                title: "励志"
               },
             },
           },
@@ -192,6 +424,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhichang",
                 param: null,
+                title: "职场"
               },
             },
           },
@@ -202,6 +435,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "meishi",
                 param: null,
+                title: "美食"
               },
             },
           },
@@ -212,6 +446,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shehui",
                 param: null,
+                title: "社会"
               },
             },
           },
@@ -222,6 +457,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "heidao",
                 param: null,
+                title: "黑道"
               },
             },
           },
@@ -232,6 +468,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhanzheng",
                 param: null,
+                title: "战争"
               },
             },
           },
@@ -242,6 +479,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "lishi",
                 param: null,
+                title: "历史"
               },
             },
           },
@@ -252,6 +490,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xuanyi",
                 param: null,
+                title: "悬疑"
               },
             },
           },
@@ -262,6 +501,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jingji",
                 param: null,
+                title: "竞技"
               },
             },
           },
@@ -272,6 +512,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "tiyu",
                 param: null,
+                title: "体育"
               },
             },
           },
@@ -282,6 +523,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "kongbu",
                 param: null,
+                title: "恐怖"
               },
             },
           },
@@ -292,6 +534,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "tuili",
                 param: null,
+                title: "推理"
               },
             },
           },
@@ -302,6 +545,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shenghuo",
                 param: null,
+                title: "生活"
               },
             },
           },
@@ -312,6 +556,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "weiniang",
                 param: null,
+                title: "伪娘"
               },
             },
           },
@@ -322,6 +567,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhiyu",
                 param: null,
+                title: "治愈"
               },
             },
           },
@@ -332,6 +578,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shengui",
                 param: null,
+                title: "神鬼"
               },
             },
           },
@@ -342,6 +589,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "sige",
                 param: null,
+                title: "四格"
               },
             },
           },
@@ -352,6 +600,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "baihe",
                 param: null,
+                title: "百合"
               },
             },
           },
@@ -362,6 +611,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "danmei",
                 param: null,
+                title: "耽美"
               },
             },
           },
@@ -372,6 +622,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "wudao",
                 param: null,
+                title: "舞蹈"
               },
             },
           },
@@ -382,6 +633,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhentan",
                 param: null,
+                title: "侦探"
               },
             },
           },
@@ -392,6 +644,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhainan",
                 param: null,
+                title: "宅男"
               },
             },
           },
@@ -402,6 +655,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yinyue",
                 param: null,
+                title: "音乐"
               },
             },
           },
@@ -412,6 +666,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "mengxi",
                 param: null,
+                title: "萌系"
               },
             },
           },
@@ -422,6 +677,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gufeng",
                 param: null,
+                title: "古风"
               },
             },
           },
@@ -432,6 +688,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "lianai",
                 param: null,
+                title: "恋爱"
               },
             },
           },
@@ -442,6 +699,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "dushi",
                 param: null,
+                title: "都市"
               },
             },
           },
@@ -452,6 +710,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xingzhuan",
                 param: null,
+                title: "性转"
               },
             },
           },
@@ -462,6 +721,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "chuanyue",
                 param: null,
+                title: "穿越"
               },
             },
           },
@@ -472,6 +732,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "youxi",
                 param: null,
+                title: "游戏"
               },
             },
           },
@@ -482,6 +743,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qita",
                 param: null,
+                title: "其他"
               },
             },
           },
@@ -492,6 +754,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "aiqi",
                 param: null,
+                title: "爱妻"
               },
             },
           },
@@ -502,6 +765,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "richang",
                 param: null,
+                title: "日常"
               },
             },
           },
@@ -512,6 +776,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "fuhei",
                 param: null,
+                title: "腹黑"
               },
             },
           },
@@ -522,6 +787,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "guzhuang",
                 param: null,
+                title: "古装"
               },
             },
           },
@@ -532,6 +798,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xianxia",
                 param: null,
+                title: "仙侠"
               },
             },
           },
@@ -542,6 +809,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shenghua",
                 param: null,
+                title: "生化"
               },
             },
           },
@@ -552,6 +820,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xiuxian",
                 param: null,
+                title: "修仙"
               },
             },
           },
@@ -562,6 +831,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qinggan",
                 param: null,
+                title: "情感"
               },
             },
           },
@@ -572,6 +842,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gaibian",
                 param: null,
+                title: "改编"
               },
             },
           },
@@ -582,6 +853,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "chunai",
                 param: null,
+                title: "纯爱"
               },
             },
           },
@@ -592,6 +864,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "weimei",
                 param: null,
+                title: "唯美"
               },
             },
           },
@@ -602,6 +875,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qiangwei",
                 param: null,
+                title: "蔷薇"
               },
             },
           },
@@ -612,6 +886,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "mingxing",
                 param: null,
+                title: "明星"
               },
             },
           },
@@ -622,6 +897,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "lieqi",
                 param: null,
+                title: "猎奇"
               },
             },
           },
@@ -632,6 +908,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qingchun",
                 param: null,
+                title: "青春"
               },
             },
           },
@@ -642,6 +919,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "huanxiang",
                 param: null,
+                title: "幻想"
               },
             },
           },
@@ -652,6 +930,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jingqi",
                 param: null,
+                title: "惊奇"
               },
             },
           },
@@ -662,6 +941,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "caihong",
                 param: null,
+                title: "彩虹"
               },
             },
           },
@@ -672,6 +952,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qiwen",
                 param: null,
+                title: "奇闻"
               },
             },
           },
@@ -682,6 +963,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "quanmou",
                 param: null,
+                title: "权谋"
               },
             },
           },
@@ -692,6 +974,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhaidou",
                 param: null,
+                title: "宅斗"
               },
             },
           },
@@ -702,6 +985,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xianzhiji",
                 param: null,
+                title: "限制级"
               },
             },
           },
@@ -712,6 +996,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhuangbi",
                 param: null,
+                title: "装逼"
               },
             },
           },
@@ -722,6 +1007,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "langman",
                 param: null,
+                title: "浪漫"
               },
             },
           },
@@ -732,6 +1018,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "ouxiang",
                 param: null,
+                title: "偶像"
               },
             },
           },
@@ -742,6 +1029,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "danvzhu",
                 param: null,
+                title: "大女主"
               },
             },
           },
@@ -752,6 +1040,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "fuchou",
                 param: null,
+                title: "复仇"
               },
             },
           },
@@ -762,6 +1051,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "nuexin",
                 param: null,
+                title: "虐心"
               },
             },
           },
@@ -772,6 +1062,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "egao",
                 param: null,
+                title: "恶搞"
               },
             },
           },
@@ -782,6 +1073,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "lingyi",
                 param: null,
+                title: "灵异"
               },
             },
           },
@@ -792,6 +1084,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jingxian",
                 param: null,
+                title: "惊险"
               },
             },
           },
@@ -802,6 +1095,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "chongai",
                 param: null,
+                title: "宠爱"
               },
             },
           },
@@ -812,6 +1106,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "nixi",
                 param: null,
+                title: "逆袭"
               },
             },
           },
@@ -822,6 +1117,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yaoguai",
                 param: null,
+                title: "妖怪"
               },
             },
           },
@@ -832,6 +1128,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "aimei",
                 param: null,
+                title: "暧昧"
               },
             },
           },
@@ -842,6 +1139,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "tongren",
                 param: null,
+                title: "同人"
               },
             },
           },
@@ -852,6 +1150,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jiakong",
                 param: null,
+                title: "架空"
               },
             },
           },
@@ -862,6 +1161,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhenren",
                 param: null,
+                title: "真人"
               },
             },
           },
@@ -872,6 +1172,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "dongzuo",
                 param: null,
+                title: "动作"
               },
             },
           },
@@ -882,6 +1183,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "juwei",
                 param: null,
+                title: "橘味"
               },
             },
           },
@@ -892,6 +1194,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gongdou",
                 param: null,
+                title: "宫斗"
               },
             },
           },
@@ -902,6 +1205,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "naodong",
                 param: null,
+                title: "脑洞"
               },
             },
           },
@@ -912,6 +1216,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "mangai",
                 param: null,
+                title: "漫改"
               },
             },
           },
@@ -922,6 +1227,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhandou",
                 param: null,
+                title: "战斗"
               },
             },
           },
@@ -932,6 +1238,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "sangshi",
                 param: null,
+                title: "丧尸"
               },
             },
           },
@@ -942,6 +1249,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "meishaonv",
                 param: null,
+                title: "美少女"
               },
             },
           },
@@ -952,6 +1260,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "guaiwu",
                 param: null,
+                title: "怪物"
               },
             },
           },
@@ -962,6 +1271,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xitong",
                 param: null,
+                title: "系统"
               },
             },
           },
@@ -972,6 +1282,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhidou",
                 param: null,
+                title: "智斗"
               },
             },
           },
@@ -982,6 +1293,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jijia",
                 param: null,
+                title: "机甲"
               },
             },
           },
@@ -992,6 +1304,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gaotian",
                 param: null,
+                title: "高甜"
               },
             },
           },
@@ -1002,6 +1315,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jiangshi",
                 param: null,
+                title: "僵尸"
               },
             },
           },
@@ -1012,6 +1326,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhiyu",
                 param: null,
+                title: "致郁"
               },
             },
           },
@@ -1022,6 +1337,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "dianjing",
                 param: null,
+                title: "电竞"
               },
             },
           },
@@ -1032,6 +1348,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shenmo",
                 param: null,
+                title: "神魔"
               },
             },
           },
@@ -1042,6 +1359,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yineng",
                 param: null,
+                title: "异能"
               },
             },
           },
@@ -1052,6 +1370,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "mori",
                 param: null,
+                title: "末日"
               },
             },
           },
@@ -1062,6 +1381,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yinv",
                 param: null,
+                title: "乙女"
               },
             },
           },
@@ -1072,6 +1392,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "haokuai",
                 param: null,
+                title: "豪快"
               },
             },
           },
@@ -1082,6 +1403,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qihuan",
                 param: null,
+                title: "奇幻"
               },
             },
           },
@@ -1092,6 +1414,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shenshi",
                 param: null,
+                title: "绅士"
               },
             },
           },
@@ -1102,6 +1425,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhengnengliang",
                 param: null,
+                title: "正能量"
               },
             },
           },
@@ -1112,6 +1436,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "gongting",
                 param: null,
+                title: "宫廷"
               },
             },
           },
@@ -1122,6 +1447,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qinqing",
                 param: null,
+                title: "亲情"
               },
             },
           },
@@ -1132,6 +1458,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yangcheng",
                 param: null,
+                title: "养成"
               },
             },
           },
@@ -1142,6 +1469,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "juqing",
                 param: null,
+                title: "剧情"
               },
             },
           },
@@ -1152,6 +1480,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qingxiaoshuo",
                 param: null,
+                title: "轻小说"
               },
             },
           },
@@ -1162,6 +1491,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "anhei",
                 param: null,
+                title: "暗黑"
               },
             },
           },
@@ -1172,6 +1502,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "changtiao",
                 param: null,
+                title: "长条"
               },
             },
           },
@@ -1182,6 +1513,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xuanhuan",
                 param: null,
+                title: "玄幻"
               },
             },
           },
@@ -1192,6 +1524,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "bazong",
                 param: null,
+                title: "霸总"
               },
             },
           },
@@ -1202,6 +1535,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "ouhuang",
                 param: null,
+                title: "欧皇"
               },
             },
           },
@@ -1212,6 +1546,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shengcun",
                 param: null,
+                title: "生存"
               },
             },
           },
@@ -1222,6 +1557,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yishijie",
                 param: null,
+                title: "异世界"
               },
             },
           },
@@ -1232,6 +1568,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "C99",
                 param: null,
+                title: "C99"
               },
             },
           },
@@ -1242,6 +1579,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "jiecao",
                 param: null,
+                title: "节操"
               },
             },
           },
@@ -1252,6 +1590,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "AA",
                 param: null,
+                title: "AA"
               },
             },
           },
@@ -1262,6 +1601,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yingshihua",
                 param: null,
+                title: "影视化"
               },
             },
           },
@@ -1272,6 +1612,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "oufeng",
                 param: null,
+                title: "欧风"
               },
             },
           },
@@ -1282,6 +1623,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "nvshen",
                 param: null,
+                title: "女神"
               },
             },
           },
@@ -1292,6 +1634,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shuanggan",
                 param: null,
+                title: "爽感"
               },
             },
           },
@@ -1302,6 +1645,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhuansheng",
                 param: null,
+                title: "转生"
               },
             },
           },
@@ -1312,6 +1656,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "yixing",
                 param: null,
+                title: "异形"
               },
             },
           },
@@ -1322,6 +1667,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "fantaolu",
                 param: null,
+                title: "反套路"
               },
             },
           },
@@ -1332,6 +1678,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shuangnanzhu",
                 param: null,
+                title: "双男主"
               },
             },
           },
@@ -1342,6 +1689,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "wudiliu",
                 param: null,
+                title: "无敌流"
               },
             },
           },
@@ -1352,6 +1700,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xingzhuanhuan",
                 param: null,
+                title: "性转换"
               },
             },
           },
@@ -1362,6 +1711,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "zhongsheng",
                 param: null,
+                title: "重生"
               },
             },
           },
@@ -1372,6 +1722,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xuexing",
                 param: null,
+                title: "血腥"
               },
             },
           },
@@ -1382,6 +1733,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qiyu",
                 param: null,
+                title: "奇遇"
               },
             },
           },
@@ -1392,6 +1744,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "fanai",
                 param: null,
+                title: "泛爱"
               },
             },
           },
@@ -1402,6 +1755,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "ruanmeng",
                 param: null,
+                title: "软萌"
               },
             },
           },
@@ -1412,6 +1766,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xiaotianshi",
                 param: null,
+                title: "小天使"
               },
             },
           },
@@ -1422,6 +1777,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "xiee",
                 param: null,
+                title: "邪恶"
               },
             },
           },
@@ -1438,6 +1794,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "全部",
                 param: null,
+                title: "全部"
               },
             },
           },
@@ -1448,6 +1805,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "china",
                 param: null,
+                title: "内地"
               },
             },
           },
@@ -1458,6 +1816,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "japan",
                 param: null,
+                title: "日本"
               },
             },
           },
@@ -1468,6 +1827,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "hongkong",
                 param: null,
+                title: "港台"
               },
             },
           },
@@ -1478,6 +1838,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "europe",
                 param: null,
+                title: "欧美"
               },
             },
           },
@@ -1488,6 +1849,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "korea",
                 param: null,
+                title: "韩国"
               },
             },
           },
@@ -1498,6 +1860,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "other",
                 param: null,
+                title: "其他"
               },
             },
           },
@@ -1514,6 +1877,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "全部",
                 param: null,
+                title: "全部"
               },
             },
           },
@@ -1524,6 +1888,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shaonian",
                 param: null,
+                title: "少年"
               },
             },
           },
@@ -1534,6 +1899,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "shaonv",
                 param: null,
+                title: "少女"
               },
             },
           },
@@ -1544,6 +1910,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "qingnian",
                 param: null,
+                title: "青年"
               },
             },
           },
@@ -1554,6 +1921,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "BL",
                 param: null,
+                title: "BL"
               },
             },
           },
@@ -1564,42 +1932,7 @@ class HappyComicSource extends ComicSource {
               attributes: {
                 category: "GL",
                 param: null,
-              },
-            },
-          },
-        ],
-      },
-      {
-        name: "状态",
-        type: "fixed",
-        categories: [
-          {
-            label: "全部",
-            target: {
-              page: "category",
-              attributes: {
-                category: "全部",
-                param: null,
-              },
-            },
-          },
-          {
-            label: "连载中",
-            target: {
-              page: "category",
-              attributes: {
-                category: "连载中",
-                param: null,
-              },
-            },
-          },
-          {
-            label: "完结",
-            target: {
-              page: "category",
-              attributes: {
-                category: "完结",
-                param: null,
+                title: "GL"
               },
             },
           },
@@ -1611,52 +1944,97 @@ class HappyComicSource extends ComicSource {
 
   categoryComics = {
     load: async function (category, param, options, page) {
-      // Parse options
-      var genre = category === "全部" ? "" : category;
-      var area = "";
-      var audience = "";
-      var status = "-1"; // Default to all statuses
+      const optionKey = options.join("_") || "default";
+      return this._withCache(`category_${category}.param_${param}.options_${optionKey}.page_${page}`, async () => {
+        // Track which filters have been applied via category to avoid conflicts with options
+        let hasCategoryGenre = false;
+        let hasCategoryArea = false;
+        let hasCategoryAudience = false;
+        let hasCategoryStatus = false;
 
-      for (var i = 0; i < options.length; i++) {
-        var option = options[i];
-        if (option.includes("area@")) {
-          area = option.split("-")[0].split("@")[1] || "";
-        } else if (option.includes("audience@")) {
-          audience = option.split("-")[0].split("@")[1] || "";
-        } else if (option.includes("status@")) {
-          status = option.split("-")[0].split("@")[1] || "-1";
+        // Parse parameters
+        var genre = "";
+        var area = "";
+        var audience = "";
+        var status = "-1"; // Default to all statuses
+
+        // Handle the main category based on its type
+        // Check category type based on predefined values
+        const areaValues = ["china", "japan", "hongkong", "europe", "korea", "other"];
+        const audienceValues = ["shaonian", "shaonv", "qingnian", "BL", "GL"];
+        const statusValues = ["连载中", "完结"];
+        
+        if (category !== "全部") {
+          if (areaValues.includes(category)) {
+            area = category;
+            hasCategoryArea = true;
+          } else if (audienceValues.includes(category)) {
+            audience = category;
+            hasCategoryAudience = true;
+          } else if (statusValues.includes(category)) {
+            status = category === "连载中" ? "0" : "1";
+            hasCategoryStatus = true;
+          } else {
+            // Treat as genre
+            genre = category;
+            hasCategoryGenre = true;
+          }
         }
-      }
 
-      var url = "https://m.happymh.com/apis/c/index?";
-      if (genre !== "") url += "genre=" + genre + "&";
-      if (area !== "") url += "area=" + area + "&";
-      if (audience !== "") url += "audience=" + audience + "&";
-      if (status !== "") url += "series_status=" + status + "&";
-      url += "pn=" + page;
+        // Apply filters from options since now we only have one "all" category
+        // But only if the corresponding category filter hasn't been applied yet
+        for (var i = 0; i < options.length; i++) {
+          var option = options[i];
+          if (option.includes("area@")) {
+            // Only apply area option if no category area filter was applied
+            if (!hasCategoryArea) {
+              area = option.split("-")[0].split("@")[1] || "";
+            }
+          } else if (option.includes("audience@")) {
+            // Only apply audience option if no category audience filter was applied
+            if (!hasCategoryAudience) {
+              audience = option.split("-")[0].split("@")[1] || "";
+            }
+          } else if (option.includes("status@")) {
+            // Only apply status option if no category status filter was applied
+            if (!hasCategoryStatus) {
+              status = option.split("-")[0].split("@")[1] || "-1";
+            }
+          }
+        }
 
-      var res = await fetch(url, {
-        headers: {
-          "User-Agent":
-            this.loadSetting("ua") ||
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-          Referer: "https://m.happymh.com/latest",
-        },
-      });
-      if (res.status !== 200) {
-        throw new Error("CategoryComics failed: " + res.status);
-      }
-      var data = await res.json();
-      var comics = [];
-      for (var i = 0; i < data.data.items.length; i++) {
-        var item = data.data.items[i];
-        var comic = this.parseComic(item);
-        comics.push(comic);
-      }
-      return {
-        comics: comics,
-        maxPage: data.data.isEnd ? page : page + 1,
-      };
+        // Build URL
+        var url = "https://m.happymh.com/apis/c/index?";
+        if (genre !== "") url += "genre=" + genre + "&";
+        if (area !== "") url += "area=" + area + "&";
+        if (audience !== "") url += "audience=" + audience + "&";
+        if (status !== "-1") url += "series_status=" + status + "&";
+        url += "pn=" + page;
+
+        var res = await fetch(url, {
+          headers: {
+            "User-Agent":
+              this.loadSetting("ua") ||
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+            Referer: "https://m.happymh.com/latest",
+          },
+        });
+        if (res.status !== 200) {
+          throw new Error("CategoryComics failed: " + res.status);
+        }
+        var data = await res.json();
+        var comics = [];
+        for (var i = 0; i < data.data.items.length; i++) {
+          var item = data.data.items[i];
+          var comic = this.parseComic(item);
+          comics.push(comic);
+        }
+
+        return {
+          comics: comics,
+          maxPage: data.data.isEnd ? page : page + 1,
+        };
+      })
     }.bind(this),
     optionList: [
       {
@@ -1670,6 +2048,7 @@ class HappyComicSource extends ComicSource {
           "area@korea-韩国",
           "area@other-其他",
         ],
+        notShowWhen: ["china", "japan", "hongkong", "europe", "korea", "other"], // Hide when area category is selected
       },
       {
         label: "受众",
@@ -1681,194 +2060,222 @@ class HappyComicSource extends ComicSource {
           "audience@BL-BL",
           "audience@GL-GL",
         ],
+        notShowWhen: ["shaonian", "shaonv", "qingnian", "BL", "GL"], // Hide when audience category is selected
       },
       {
         label: "状态",
         options: ["status@-全部", "status@0-连载中", "status@1-完结"],
+        notShowWhen: ["连载中", "完结"], // Hide when status category is selected
       },
     ],
   };
 
   search = {
     load: async function (keyword, options, page) {
-      if (keyword === "") {
-        // If keyword is empty, perform category search with filters
-        // Default to "全部" category when no keyword is provided
-        return await this.categoryComics.load("全部", null, options, page);
-      }
-
-      var res = await Network.post(
-        "https://m.happymh.com/v2.0/apis/manga/ssearch",
-        {
+      const optionKey = options.join("_") || "default";
+      return this._withCache(`search.keyword_${keyword}.options_${optionKey}.page_${page}`, async () => {
+        await Network.get('https://m.happymh.com/sssearch', {
           headers: {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            Referer: "https://m.happymh.com/sssearch",
             "User-Agent":
               this.loadSetting("ua") ||
               "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+            Referer: "https://m.happymh.com/",
           },
-          body: "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
-        },
-      );
-      if (res.status !== 200) {
-        throw new Error("Search failed: " + res.status);
-      }
-      var data = await res.json();
-      var comics = [];
-      for (var i = 0; i < data.data.items.length; i++) {
-        var item = data.data.items[i];
-        var comic = this.parseComic(item);
-        comics.push(comic);
-      }
-      return {
-        comics: comics,
-        maxPage: page, // Search typically doesn't have pagination in this API
-      };
+        })
+
+        if (keyword === "") {
+          // If keyword is empty, perform category search with filters
+          // Default to "全部" category when no keyword is provided
+          return await this.categoryComics.load("全部", null, options, page);
+        }
+
+        var res = await Network.post(
+          "https://m.happymh.com/v2.0/apis/manga/ssearch",
+          {
+            headers: {
+              "Content-Type":
+                "application/x-www-form-urlencoded; charset=UTF-8",
+              Referer: "https://m.happymh.com/sssearch",
+              "User-Agent":
+                this.loadSetting("ua") ||
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+            },
+            body: "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
+          },
+        );
+        if (res.status !== 200) {
+          throw new Error("Search failed: " + res.status);
+        }
+        var data = await res.json();
+        var comics = [];
+        for (var i = 0; i < data.data.items.length; i++) {
+          var item = data.data.items[i];
+          var comic = this.parseComic(item);
+          comics.push(comic);
+        }
+
+        return {
+          comics: comics,
+          maxPage: page, // Search typically doesn't have pagination in this API
+        };
+      });
     }.bind(this),
   };
 
   comic = {
     loadInfo: async (id) => {
-      var res = await Network.get("https://m.happymh.com/manga/" + id, {
-        headers: {
-          "User-Agent":
-            this.loadSetting("ua") ||
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-          Referer: "https://m.happymh.com/latest",
-        },
-      });
-      if (res.status !== 200) {
-        throw new Error("Comic info failed: " + res.status);
-      }
-      var document = new HtmlDocument(res.body);
+      return this._withCache(`comic_${id}.info`, async () => {
+        var res = await Network.get("https://m.happymh.com/manga/" + id, {
+          headers: {
+            "User-Agent":
+              this.loadSetting("ua") ||
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+            Referer: "https://m.happymh.com/latest",
+          },
+        });
+        if (res.status !== 200) {
+          throw new Error("Comic info failed: " + res.status);
+        }
+        var document = new HtmlDocument(res.body);
 
-      // Extract comic details
-      var title = document.querySelector("div.mg-property > h2.mg-title").text;
-      var cover = document.querySelector("div.mg-cover > mip-img").attributes[
-        "src"
-      ];
-      var author = document
-        .querySelectorAll("div.mg-property > p.mg-sub-title")[1]
-        .text.trim();
-      var genre = [];
-      var genreElements = document.querySelectorAll(
-        "div.mg-property > p.mg-cate > a",
-      );
-      for (var i = 0; i < genreElements.length; i++) {
-        genre.push(genreElements[i].text);
-      }
-      var description = document.querySelector(
-        "div.manga-introduction > mip-showmore#showmore",
-      ).text;
+        // Extract comic details
+        var title = document.querySelector(
+          "div.mg-property > h2.mg-title",
+        ).text;
+        var cover = document.querySelector("div.mg-cover > mip-img")
+          .attributes["src"];
+        var author = document
+          .querySelectorAll("div.mg-property > p.mg-sub-title")[1]
+          .text.trim();
+        var genre = [];
+        var genreElements = document.querySelectorAll(
+          "div.mg-property > p.mg-cate > a",
+        );
+        for (var i = 0; i < genreElements.length; i++) {
+          genre.push(genreElements[i].text);
+        }
+        var description = document.querySelector(
+          "div.manga-introduction > mip-showmore#showmore",
+        ).text;
 
-      const time = document.querySelector(".time").text.trim();
-      // Get comic code from URL
-      var comicId = id.split("/").pop();
+        const time = document.querySelector(".time").text.trim();
+        // Get comic code from URL
+        var comicId = id.split("/").pop();
 
-      // Load chapters (with pagination)
-      var chapters = new Map();
-      let listChapters = [];
-      var chapterPage = 1;
-      var hasMoreChapters = true;
+        // Load chapters (with pagination)
+        var chapters = new Map();
+        let listChapters = [];
+        var chapterPage = 1;
+        var hasMoreChapters = true;
 
-      while (hasMoreChapters) {
-        var chapterRes = await fetch(
-          "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
+        while (hasMoreChapters) {
+          var chapterRes = await fetch(
+            "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
             comicId +
             "&lang=cn&order=asc&page=" +
             chapterPage +
             "&v=v2.1818134",
+            {
+              headers: {
+                "User-Agent":
+                  this.loadSetting("ua") ||
+                  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+                Referer: "https://m.happymh.com" + id,
+                "X-Requested-With": "XMLHttpRequest",
+              },
+            },
+          );
+          if (chapterRes.status !== 200) {
+            break; // If chapter API fails, continue with available chapters
+          }
+          var chapterData = await chapterRes.json();
+
+          if (chapterData.data.items.length === 0) {
+            hasMoreChapters = false;
+          } else {
+            // Process chapters from current page
+            for (var i = 0; i < chapterData.data.items.length; i++) {
+              var item = chapterData.data.items[i];
+              // Format the chapter key to include comicId and chapterId
+              var chapterKey =
+                "/" +
+                comicId +
+                "/dummy-mark/" +
+                item.id +
+                "#" +
+                chapterPage;
+              listChapters.push({
+                key: item.codes,
+                name: item.chapterName,
+              });
+            }
+            // Check if this is the last page
+            if (chapterData.data.isEnd === 1) {
+              hasMoreChapters = false;
+            }
+            chapterPage++;
+          }
+        }
+
+        listChapters.map((e) => {
+          chapters.set(e.key, e.name);
+        });
+
+        const result = {
+          id: id,
+          title: title,
+          cover: cover,
+          tags: {
+            标签: genre,
+            作者: [author],
+          },
+          description: description,
+          chapters: chapters,
+          updateTime: time,
+        };
+
+        return new ComicDetails(result);
+      });
+    },
+
+    loadEp: async (comicId, epId) => {
+      return this._withCache(`comic_${comicId}.chapter_${epId}.images`, async () => {
+        // First, find the chapter code using the chapterId
+        var chapterCode = epId;
+        // Now get the images using the chapter code
+        var res = await fetch(
+          "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
+          chapterCode +
+          "&v=v3.1818134",
           {
             headers: {
               "User-Agent":
                 this.loadSetting("ua") ||
                 "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-              Referer: "https://m.happymh.com" + id,
+              Referer: "https://m.happymh.com" + epId,
               "X-Requested-With": "XMLHttpRequest",
             },
           },
         );
-        if (chapterRes.status !== 200) {
-          break; // If chapter API fails, continue with available chapters
+        if (res.status !== 200) {
+          throw new Error("LoadEp failed: " + res.status);
         }
-        var chapterData = await chapterRes.json();
+        var data = await res.json();
 
-        if (chapterData.data.items.length === 0) {
-          hasMoreChapters = false;
-        } else {
-          // Process chapters from current page
-          for (var i = 0; i < chapterData.data.items.length; i++) {
-            var item = chapterData.data.items[i];
-            // Format the chapter key to include comicId and chapterId
-            var chapterKey =
-              "/" + comicId + "/dummy-mark/" + item.id + "#" + chapterPage;
-            listChapters.push({
-              key: item.codes,
-              name: item.chapterName,
-            });
+        // Extract images that belong to current chapter (n == 0)
+        var images = [];
+        for (var i = 0; i < data.data.scans.length; i++) {
+          var scan = data.data.scans[i];
+          if (scan.n === 0) {
+            // Only include images from current chapter, not next chapter
+            images.push(scan.url);
           }
-          // Check if this is the last page
-          if (chapterData.data.isEnd === 1) {
-            hasMoreChapters = false;
-          }
-          chapterPage++;
         }
-      }
 
-      listChapters.map((e) => {
-        chapters.set(e.key, e.name);
+        return {
+          images: images,
+        };
       });
-
-      return new ComicDetails({
-        id: id,
-        title: title,
-        cover: cover,
-        tags: {
-          标签: genre,
-          作者: [author],
-        },
-        description: description,
-        chapters: chapters,
-        updateTime: time,
-      });
-    },
-
-    loadEp: async (comicId, epId) => {
-      // First, find the chapter code using the chapterId
-      var chapterCode = epId;
-      // Now get the images using the chapter code
-      var res = await fetch(
-        "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-          chapterCode +
-          "&v=v3.1818134",
-        {
-          headers: {
-            "User-Agent":
-              this.loadSetting("ua") ||
-              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-            Referer: "https://m.happymh.com" + epId,
-            "X-Requested-With": "XMLHttpRequest",
-          },
-        },
-      );
-      if (res.status !== 200) {
-        throw new Error("LoadEp failed: " + res.status);
-      }
-      var data = await res.json();
-
-      // Extract images that belong to current chapter (n == 0)
-      var images = [];
-      for (var i = 0; i < data.data.scans.length; i++) {
-        var scan = data.data.scans[i];
-        if (scan.n === 0) {
-          // Only include images from current chapter, not next chapter
-          images.push(scan.url);
-        }
-      }
-
-      return {
-        images: images,
-      };
     },
 
     onImageLoad: function (url, comicId, epId) {
@@ -1901,19 +2308,22 @@ class HappyComicSource extends ComicSource {
         "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
       description: "User agent for requests. Leave empty to use default.",
     },
-  };
-
-  translation = {
-    zh_CN: {
-      分类: "分类",
-      地区: "地区",
-      受众: "受众",
-      状态: "状态",
-      Setting1: "设置1",
-      Setting2: "设置2",
-      Setting3: "设置3",
+    enableCache: {
+      title: "Enable Cache",
+      type: "switch",
+      default: true,
     },
-    zh_TW: {},
-    en: {},
+    cacheDuration: {
+      title: "Cache Duration (hours)",
+      type: "input",
+      default: "1",
+    },
+    manageCache: {
+      title: "Manage Cache",
+      type: "callback",
+      callback: () => {
+        this._manageCacheAction();
+      },
+    },
   };
 }

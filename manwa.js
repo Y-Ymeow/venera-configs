@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.7";
+  version = "1.0.8";
   minAppVersion = "1.4.0";
 
   url =
@@ -42,6 +42,220 @@ class Manwa extends ComicSource {
     return `${this.domain}${path}`;
   }
 
+  // --- Cache Implementation ---
+  async _withCache(key, fetcher) {
+    const enableCache = this.loadSetting("enableCache");
+    if (!enableCache) {
+      return await fetcher();
+    }
+
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const cachedTimestamp = get(timestamps, key);
+    const data = this.loadData("cache_data") || {};
+    const cachedData = get(data, key);
+
+    if (cachedTimestamp && cachedData) {
+      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
+      if (!isExpired) {
+        console.log(`[Cache] HIT: ${key}`);
+        return cachedData;
+      }
+    }
+
+    try {
+      console.log(
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+      );
+      const newData = await fetcher();
+
+      const set = (obj, p, val) => {
+        const parts = p.split(".");
+        const last = parts.pop();
+        let current = obj;
+        for (const part of parts) {
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        current[last] = val;
+        return obj;
+      };
+
+      let allTimestamps = this.loadData("cache_timestamps") || {};
+      let allData = this.loadData("cache_data") || {};
+      let allKeys = this.loadData("cache_keys") || {};
+
+      set(allTimestamps, key, Date.now());
+      set(allData, key, newData);
+      set(allKeys, key, true);
+
+      this.saveData("cache_timestamps", allTimestamps);
+      this.saveData("cache_data", allData);
+      this.saveData("cache_keys", allKeys);
+
+      return newData;
+    } catch (e) {
+      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
+      if (cachedData) {
+        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        return cachedData;
+      }
+      throw e;
+    }
+  }
+
+  _getAllCacheKeys() {
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const deletableKeys = [];
+    if (timestamps.explore) {
+      Object.keys(timestamps.explore).forEach((lang) =>
+        deletableKeys.push(`explore.${lang}`)
+      );
+    }
+    if (timestamps.comic) {
+      Object.keys(timestamps.comic).forEach((id) =>
+        deletableKeys.push(`comic.${id}`)
+      );
+    }
+    return deletableKeys;
+  }
+
+  async _manageCacheAction() {
+    const options = [
+      "Clear All Cache",
+      "Clear Expired Cache",
+      "Clear Specific Cache",
+    ];
+    const selected = await UI.showSelectDialog("Cache Management", options);
+
+    if (selected === 0) {
+      // Clear All
+      this.deleteData("cache_timestamps");
+      this.deleteData("cache_data");
+      this.deleteData("cache_keys");
+      UI.showMessage("Manwa cache cleared.");
+    } else if (selected === 1) {
+      // Clear Expired
+      const count = this._clearExpiredCache();
+      UI.showMessage(`Cleared ${count} expired cache items.`);
+    } else if (selected === 2) {
+      // Clear Specific
+      const allKeys = this._getAllCacheKeys();
+
+      if (allKeys.length === 0) {
+        UI.showMessage("No cache entries to clear.");
+        return;
+      }
+
+      const selectedKeyIndex = await UI.showSelectDialog(
+        "Select cache key to clear",
+        allKeys
+      );
+
+      if (selectedKeyIndex !== null) {
+        const keyToClear = allKeys[selectedKeyIndex];
+        this._clearCacheKey(keyToClear);
+        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
+      }
+    }
+  }
+
+  _clearCacheKey(key) {
+    const unset = (obj, p) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current || typeof current[part] !== "object") {
+          return;
+        }
+        current = current[part];
+      }
+      if (current) {
+        delete current[last];
+      }
+    };
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+    let keys = this.loadData("cache_keys") || {};
+
+    unset(timestamps, key);
+    unset(data, key);
+    unset(keys, key);
+
+    this.saveData("cache_timestamps", timestamps);
+    this.saveData("cache_data", data);
+    this.saveData("cache_keys", keys);
+  }
+
+  _clearExpiredCache() {
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+
+    let newTimestamps = {};
+    let newData = {};
+    let newKeys = {};
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+    const set = (obj, p, val) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      current[last] = val;
+      return obj;
+    };
+
+    const getAllKeys = (obj, prefix = "") => {
+      return Object.keys(obj).reduce((res, el) => {
+        if (typeof obj[el] === "object" && obj[el] !== null) {
+          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
+        }
+        return [...res, prefix + el];
+      }, []);
+    };
+
+    const allKeys = getAllKeys(timestamps);
+    let clearedCount = 0;
+
+    for (const key of allKeys) {
+      const timestamp = get(timestamps, key);
+      const isExpired = Date.now() - timestamp > CACHE_DURATION;
+
+      if (!isExpired) {
+        set(newTimestamps, key, timestamp);
+        set(newData, key, get(data, key));
+        set(newKeys, key, true);
+      } else {
+        clearedCount++;
+      }
+    }
+
+    this.saveData("cache_timestamps", newTimestamps);
+    this.saveData("cache_data", newData);
+    this.saveData("cache_keys", newKeys);
+
+    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
+    return clearedCount;
+  }
+
   settings = {
     domain: {
       type: "select",
@@ -76,6 +290,23 @@ class Manwa extends ComicSource {
       type: "input",
       title: "User-Agent",
       default: Manwa.ua,
+    },
+    enableCache: {
+      title: "Enable Cache",
+      type: "switch",
+      default: true,
+    },
+    cacheDuration: {
+      title: "Cache Duration (hours)",
+      type: "input",
+      default: "1",
+    },
+    manageCache: {
+      title: "Manage Cache",
+      type: "callback",
+      callback: () => {
+        this._manageCacheAction();
+      },
     },
   };
 
@@ -201,25 +432,28 @@ class Manwa extends ComicSource {
       title: "漫蛙",
       type: "multiPartPage",
       load: async () => {
-        /** 读取推荐 */
-        const res = await Network.get(this.buildUrl("rank"), {
-          "User-Agent": Manwa.ua,
+        const cacheKey = `explore.${this.domain}`;
+        return this._withCache(cacheKey, async () => {
+          /** 读取推荐 */
+          const res = await Network.get(this.buildUrl("rank"), {
+            "User-Agent": Manwa.ua,
+          });
+          if (res.status !== 200) {
+            throw new Error(`Failed to load recommendations: ${res.status}`);
+          }
+
+          const document = new HtmlDocument(res.body);
+          const comicElements = document.querySelectorAll("#rankList_2 > a");
+          const comics = comicElements.map((element) => this.parseComic(element));
+
+          // Return as a single category
+          return [
+            {
+              title: "推荐",
+              comics: comics,
+            },
+          ];
         });
-        if (res.status !== 200) {
-          throw new Error(`Failed to load recommendations: ${res.status}`);
-        }
-
-        const document = new HtmlDocument(res.body);
-        const comicElements = document.querySelectorAll("#rankList_2 > a");
-        const comics = comicElements.map((element) => this.parseComic(element));
-
-        // Return as a single category
-        return [
-          {
-            title: "推荐",
-            comics: comics,
-          },
-        ];
       },
     },
   ];
@@ -231,76 +465,79 @@ class Manwa extends ComicSource {
      * @returns {Promise<ComicDetails>}
      */
     loadInfo: async (id) => {
-      const res = await Network.get(this.buildUrl(`book/${id}`), {
-        "User-Agent": Manwa.ua,
-      });
-      if (res.status !== 200) {
-        throw new Error(`Failed to load comic info: ${res.status}`);
-      }
+      const cacheKey = `comic.${id}.info`;
+      return this._withCache(cacheKey, async () => {
+        const res = await Network.get(this.buildUrl(`book/${id}`), {
+          "User-Agent": Manwa.ua,
+        });
+        if (res.status !== 200) {
+          throw new Error(`Failed to load comic info: ${res.status}`);
+        }
 
-      const document = new HtmlDocument(res.body);
+        const document = new HtmlDocument(res.body);
 
-      // Extract comic details
-      const title =
-        document.querySelector(".detail-main-info-title")?.text || "";
-      const cover =
-        document.querySelector("div.detail-main-cover > img")?.attributes[
-          "data-original"
-        ] || "";
-      const author = document
-        .querySelectorAll(
-          "p.detail-main-info-author > span.detail-main-info-value",
-        )[1]
-        .querySelectorAll("a");
-      let authorTexts = author.map((e) => e.text.trim());
-      const subtitle =
-        document
+        // Extract comic details
+        const title =
+          document.querySelector(".detail-main-info-title")?.text || "";
+        const cover =
+          document.querySelector("div.detail-main-cover > img")?.attributes[
+            "data-original"
+          ] || "";
+        const author = document
           .querySelectorAll(
             "p.detail-main-info-author > span.detail-main-info-value",
-          )[3]
-          ?.text?.trim() || "";
-      const statusText =
-        document
-          .querySelectorAll(
-            "p.detail-main-info-author > span.detail-main-info-value",
-          )[2]
-          ?.text?.trim() || "未知";
-      const tags = document
-        .querySelectorAll("div.detail-main-info-class > a.info-tag")
-        .map((e) => e.text.trim());
-      const description =
-        document.querySelector("#detail > p.detail-desc")?.text || "";
+          )[1]
+          .querySelectorAll("a");
+        let authorTexts = author.map((e) => e.text.trim());
+        const subtitle =
+          document
+            .querySelectorAll(
+              "p.detail-main-info-author > span.detail-main-info-value",
+            )[3]
+            ?.text?.trim() || "";
+        const statusText =
+          document
+            .querySelectorAll(
+              "p.detail-main-info-author > span.detail-main-info-value",
+            )[2]
+            ?.text?.trim() || "未知";
+        const tags = document
+          .querySelectorAll("div.detail-main-info-class > a.info-tag")
+          .map((e) => e.text.trim());
+        const description =
+          document.querySelector("#detail > p.detail-desc")?.text || "";
 
-      const updateTime = document
-        .querySelector(".detail-list-title-3")
-        .text.replace("更新", "")
-        .trim();
+        const updateTime = document
+          .querySelector(".detail-list-title-3")
+          .text.replace("更新", "")
+          .trim();
 
-      // Extract chapters
-      const chapterElements = document.querySelectorAll(
-        "ul#detail-list-select > li > a",
-      );
-      const chapters = new Map();
-      chapterElements.forEach((element, index) => {
-        const url = element.attributes["href"];
-        const name = element.text.trim();
-        // Extract chapter ID from URL
-        const chapterId = url.split("/").pop() || `${index}`;
-        chapters.set(chapterId, name);
-      });
+        // Extract chapters
+        const chapterElements = document.querySelectorAll(
+          "ul#detail-list-select > li > a",
+        );
+        const chapters = new Map();
+        chapterElements.forEach((element, index) => {
+          const url = element.attributes["href"];
+          const name = element.text.trim();
+          // Extract chapter ID from URL
+          const chapterId = url.split("/").pop() || `${index}`;
+          chapters.set(chapterId, name);
+        });
 
-      return new ComicDetails({
-        title: title,
-        cover: cover,
-        subtitle: `最新章节: ${subtitle}`,
-        description: description,
-        tags: {
-          作者: authorTexts,
-          状态: [statusText],
-          标签: tags,
-        },
-        chapters: chapters,
-        updateTime,
+        return new ComicDetails({
+          title: title,
+          cover: cover,
+          subtitle: `最新章节: ${subtitle}`,
+          description: description,
+          tags: {
+            作者: authorTexts,
+            状态: [statusText],
+            标签: tags,
+          },
+          chapters: chapters,
+          updateTime,
+        });
       });
     },
 
@@ -329,33 +566,36 @@ class Manwa extends ComicSource {
      * @returns {Promise<{images: string[]}>}
      */
     loadEp: async (comicId, epId) => {
-      // Get the image source setting
-      const imageSourceParam = this.loadSetting("imageSource") || "";
+      const cacheKey = `comic.${comicId}.ep.${epId}`;
+      return this._withCache(cacheKey, async () => {
+        // Get the image source setting
+        const imageSourceParam = this.loadSetting("imageSource") || "";
 
-      const res = await Network.get(
-        this.buildUrl(`chapter/${epId}${imageSourceParam}`),
-        {
-          "User-Agent": Manwa.ua,
-        },
-      );
+        const res = await Network.get(
+          this.buildUrl(`chapter/${epId}${imageSourceParam}`),
+          {
+            "User-Agent": Manwa.ua,
+          },
+        );
 
-      if (res.status !== 200) {
-        throw new Error(`Failed to load chapter images: ${res.status}`);
-      }
+        if (res.status !== 200) {
+          throw new Error(`Failed to load chapter images: ${res.status}`);
+        }
 
-      const document = new HtmlDocument(res.body);
-      const imageElements = document.querySelectorAll(
-        "#cp_img > div.img-content > img[data-r-src]",
-      );
-      const images = imageElements.map(
-        (element) => element.attributes["data-r-src"],
-      );
+        const document = new HtmlDocument(res.body);
+        const imageElements = document.querySelectorAll(
+          "#cp_img > div.img-content > img[data-r-src]",
+        );
+        const images = imageElements.map(
+          (element) => element.attributes["data-r-src"],
+        );
 
-      images.pop();
+        images.pop();
 
-      return {
-        images: images,
-      };
+        return {
+          images: images,
+        };
+      });
     },
     /**
      * [Optional] provide configs for an image loading

@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.6";
+  version = "1.2.7";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -30,6 +30,23 @@ class Goda extends ComicSource {
         this.fetchGenres();
       },
     },
+    enableCache: {
+      title: "Enable Cache",
+      type: "switch",
+      default: true,
+    },
+    cacheDuration: {
+      title: "Cache Duration (hours)",
+      type: "input",
+      default: "1",
+    },
+    manageCache: {
+      title: "Manage Cache",
+      type: "callback",
+      callback: () => {
+        this._manageCacheAction();
+      },
+    },
   };
 
   // Get the base URL from settings
@@ -37,69 +54,286 @@ class Goda extends ComicSource {
     return this.loadSetting("mirror");
   }
 
+  // --- Cache Implementation ---
+  async _withCache(key, fetcher) {
+    const enableCache = this.loadSetting("enableCache");
+    if (!enableCache) {
+      return await fetcher();
+    }
+
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const cachedTimestamp = get(timestamps, key);
+    const data = this.loadData("cache_data") || {};
+    const cachedData = get(data, key);
+
+    if (cachedTimestamp && cachedData) {
+      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
+      if (!isExpired) {
+        console.log(`[Cache] HIT: ${key}`);
+        return cachedData;
+      }
+    }
+
+    try {
+      console.log(
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+      );
+      const newData = await fetcher();
+
+      const set = (obj, p, val) => {
+        const parts = p.split(".");
+        const last = parts.pop();
+        let current = obj;
+        for (const part of parts) {
+          if (!current[part]) {
+            current[part] = {};
+          }
+          current = current[part];
+        }
+        current[last] = val;
+        return obj;
+      };
+
+      let allTimestamps = this.loadData("cache_timestamps") || {};
+      let allData = this.loadData("cache_data") || {};
+      let allKeys = this.loadData("cache_keys") || {};
+
+      set(allTimestamps, key, Date.now());
+      set(allData, key, newData);
+      set(allKeys, key, true);
+
+      this.saveData("cache_timestamps", allTimestamps);
+      this.saveData("cache_data", allData);
+      this.saveData("cache_keys", allKeys);
+
+      return newData;
+    } catch (e) {
+      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
+      if (cachedData) {
+        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        return cachedData;
+      }
+      throw e;
+    }
+  }
+
+  _getAllCacheKeys() {
+    const timestamps = this.loadData("cache_timestamps") || {};
+    const deletableKeys = [];
+    if (timestamps.explore) {
+      Object.keys(timestamps.explore).forEach((lang) =>
+        deletableKeys.push(`explore.${lang}`)
+      );
+    }
+    if (timestamps.comic) {
+      Object.keys(timestamps.comic).forEach((id) =>
+        deletableKeys.push(`comic.${id}`)
+      );
+    }
+    return deletableKeys;
+  }
+
+  async _manageCacheAction() {
+    const options = [
+      "Clear All Cache",
+      "Clear Expired Cache",
+      "Clear Specific Cache",
+    ];
+    const selected = await UI.showSelectDialog("Cache Management", options);
+
+    if (selected === 0) {
+      // Clear All
+      this.deleteData("cache_timestamps");
+      this.deleteData("cache_data");
+      this.deleteData("cache_keys");
+      UI.showMessage("Goda cache cleared.");
+    } else if (selected === 1) {
+      // Clear Expired
+      const count = this._clearExpiredCache();
+      UI.showMessage(`Cleared ${count} expired cache items.`);
+    } else if (selected === 2) {
+      // Clear Specific
+      const allKeys = this._getAllCacheKeys();
+
+      if (allKeys.length === 0) {
+        UI.showMessage("No cache entries to clear.");
+        return;
+      }
+
+      const selectedKeyIndex = await UI.showSelectDialog(
+        "Select cache key to clear",
+        allKeys
+      );
+
+      if (selectedKeyIndex !== null) {
+        const keyToClear = allKeys[selectedKeyIndex];
+        this._clearCacheKey(keyToClear);
+        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
+      }
+    }
+  }
+
+  _clearCacheKey(key) {
+    const unset = (obj, p) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current || typeof current[part] !== "object") {
+          return;
+        }
+        current = current[part];
+      }
+      if (current) {
+        delete current[last];
+      }
+    };
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+    let keys = this.loadData("cache_keys") || {};
+
+    unset(timestamps, key);
+    unset(data, key);
+    unset(keys, key);
+
+    this.saveData("cache_timestamps", timestamps);
+    this.saveData("cache_data", data);
+    this.saveData("cache_keys", keys);
+  }
+
+  _clearExpiredCache() {
+    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
+    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
+
+    let timestamps = this.loadData("cache_timestamps") || {};
+    let data = this.loadData("cache_data") || {};
+
+    let newTimestamps = {};
+    let newData = {};
+    let newKeys = {};
+
+    const get = (obj, p) =>
+      p.split(".").reduce((acc, part) => acc && acc[part], obj);
+    const set = (obj, p, val) => {
+      const parts = p.split(".");
+      const last = parts.pop();
+      let current = obj;
+      for (const part of parts) {
+        if (!current[part]) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      current[last] = val;
+      return obj;
+    };
+
+    const getAllKeys = (obj, prefix = "") => {
+      return Object.keys(obj).reduce((res, el) => {
+        if (typeof obj[el] === "object" && obj[el] !== null) {
+          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
+        }
+        return [...res, prefix + el];
+      }, []);
+    };
+
+    const allKeys = getAllKeys(timestamps);
+    let clearedCount = 0;
+
+    for (const key of allKeys) {
+      const timestamp = get(timestamps, key);
+      const isExpired = Date.now() - timestamp > CACHE_DURATION;
+
+      if (!isExpired) {
+        set(newTimestamps, key, timestamp);
+        set(newData, key, get(data, key));
+        set(newKeys, key, true);
+      } else {
+        clearedCount++;
+      }
+    }
+
+    this.saveData("cache_timestamps", newTimestamps);
+    this.saveData("cache_data", newData);
+    this.saveData("cache_keys", newKeys);
+
+    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
+    return clearedCount;
+  }
+
   explore = [
     {
       title: "GoDa 漫画",
       type: "multiPageComicList",
       load: async (page) => {
-        const baseUrl = this.getBaseUrl();
-        const res = await Network.get(`${baseUrl}/newss/page/${page}`, {
-          headers: {
-            Referer: `${baseUrl}/`,
-            "User-Agent": this.ua,
-          },
-        });
+        const cacheKey = `explore.${this.getBaseUrl()}`;
+        return this._withCache(cacheKey, async () => {
+          const baseUrl = this.getBaseUrl();
+          const res = await Network.get(`${baseUrl}/newss/page/${page}`, {
+            headers: {
+              Referer: `${baseUrl}/`,
+              "User-Agent": this.ua,
+            },
+          });
 
-        if (res.status !== 200) {
-          throw new Error(`Failed to fetch latest updates: ${res.status}`);
-        }
-
-        const html = res.body;
-        const doc = new HtmlDocument(html);
-
-        const comics = [];
-        const comicElements = doc.querySelectorAll(
-          ".container > .cardlist .pb-2 a",
-        );
-
-        for (const element of comicElements) {
-          const img = element.querySelector("img");
-          const titleElement = element.querySelector("h3");
-
-          if (img && titleElement) {
-            const imgSrc = img.attributes["src"];
-            // Extract 'url' parameter from imgSrc without using URL constructor
-            let thumbnailUrl = imgSrc;
-            if (imgSrc.includes("url=")) {
-              const urlParam = imgSrc.match(/[?&]url=([^&]*)/);
-              if (urlParam && urlParam[1]) {
-                thumbnailUrl = decodeURIComponent(urlParam[1]);
-              }
-            }
-
-            const comic = new Comic({
-              id: element.attributes["href"]
-                .substring("/manga/".length)
-                .replace(/\/$/, "")
-                .trim(),
-              title: titleElement.text.trim(),
-              cover: thumbnailUrl,
-              url: element.attributes["href"],
-            });
-            comics.push(comic);
+          if (res.status !== 200) {
+            throw new Error(`Failed to fetch latest updates: ${res.status}`);
           }
-        }
 
-        // Check for next page
-        const nextPageElement = doc.querySelector(
-          'a[aria-label="下一頁"] button, a[aria-label="NEXT"] button',
-        );
-        const hasNextPage = !!nextPageElement;
+          const html = res.body;
+          const doc = new HtmlDocument(html);
 
-        return {
-          comics: comics,
-          maxPage: hasNextPage ? page + 1 : 1,
-        };
+          const comics = [];
+          const comicElements = doc.querySelectorAll(
+            ".container > .cardlist .pb-2 a",
+          );
+
+          for (const element of comicElements) {
+            const img = element.querySelector("img");
+            const titleElement = element.querySelector("h3");
+
+            if (img && titleElement) {
+              const imgSrc = img.attributes["src"];
+              // Extract 'url' parameter from imgSrc without using URL constructor
+              let thumbnailUrl = imgSrc;
+              if (imgSrc.includes("url=")) {
+                const urlParam = imgSrc.match(/[?&]url=([^&]*)/);
+                if (urlParam && urlParam[1]) {
+                  thumbnailUrl = decodeURIComponent(urlParam[1]);
+                }
+              }
+
+              const comic = new Comic({
+                id: element.attributes["href"]
+                  .substring("/manga/".length)
+                  .replace(/\/$/, "")
+                  .trim(),
+                title: titleElement.text.trim(),
+                cover: thumbnailUrl,
+                url: element.attributes["href"],
+              });
+              comics.push(comic);
+            }
+          }
+
+          // Check for next page
+          const nextPageElement = doc.querySelector(
+            'a[aria-label="下一頁"] button, a[aria-label="NEXT"] button',
+          );
+          const hasNextPage = !!nextPageElement;
+
+          return {
+            comics: comics,
+            maxPage: hasNextPage ? page + 1 : 1,
+          };
+        });
       },
     },
   ];
@@ -471,188 +705,194 @@ class Goda extends ComicSource {
 
   comic = {
     loadInfo: async (mangaUrl) => {
-      const baseUrl = this.getBaseUrl();
+      const cacheKey = `comic.${mangaUrl}.info`;
+      return this._withCache(cacheKey, async () => {
+        const baseUrl = this.getBaseUrl();
 
-      // Get the manga page
-      const mangaPageRes = await Network.get(`${baseUrl}/manga/${mangaUrl}`, {
-        headers: {
-          Referer: `${baseUrl}/`,
-          "User-Agent": this.ua,
-        },
-      });
-
-      if (mangaPageRes.status !== 200) {
-        throw new Error(`Failed to load manga page: ${mangaPageRes.status}`);
-      }
-
-      const html = mangaPageRes.body;
-      const doc = new HtmlDocument(html);
-
-      // Extract cover
-      let cover = "";
-
-      // Extract title
-      const titleElement = doc.querySelector("h1");
-      let title = titleElement ? titleElement.text.trim() : "Unknown Title";
-
-      // Extract author
-      const authorElement = doc.querySelector('a[href*="/manga-author/"]');
-      const author = authorElement ? [authorElement.text.trim()] : [];
-
-      // Extract status
-      const statusSpans = doc.querySelectorAll("h1 span");
-
-      let status = [];
-      for (const span of statusSpans) {
-        if (
-          span.text.includes("連載") ||
-          span.text.includes("完結") ||
-          span.text.includes("休刊")
-        ) {
-          title = title.replace(span.text, "");
-          status = [span.text.trim()];
-          break;
-        }
-      }
-
-      // Extract genres/tags
-      const genres = [];
-      const genreElements = doc.querySelectorAll('a[href*="/manga-tag/"]');
-      for (const genreElement of genreElements) {
-        genres.push(genreElement.text.trim());
-      }
-
-      // Extract description
-      const descElement = doc.querySelector("p.line-clamp-4");
-      const description = descElement ? descElement.text.trim() : "";
-
-      // Extract manga ID from the page for API call
-      const mangaIdElement = doc.querySelector("#mangachapters, #chaplistlast");
-      let mangaId = null;
-      if (mangaIdElement) {
-        mangaId = mangaIdElement.attributes["data-mid"];
-      }
-
-      // If we couldn't get the manga ID from the page, try other selectors
-      if (!mangaId) {
-        const bookmarkData = doc.querySelector("#bookmarkData");
-        if (bookmarkData) {
-          mangaId = bookmarkData.attributes["data-mid"];
-        }
-      }
-
-      // Get detailed chapter info from API using the manga ID
-      const chapters = new Map();
-      let updateTime = "";
-
-      const apiRes = await fetch(
-        `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all&t=${Date.now()}`,
-        {
+        // Get the manga page
+        const mangaPageRes = await Network.get(`${baseUrl}/manga/${mangaUrl}`, {
           headers: {
             Referer: `${baseUrl}/`,
-            Origin: `${baseUrl}/`,
-            Connection: "keep-alive",
-            "Sec-GPC": 1,
             "User-Agent": this.ua,
-            Pragma: "no-cache",
-            "Content-Type": "application/json",
           },
-        },
-      );
+        });
 
-      if (apiRes.status === 200) {
-        const apiJson = await apiRes.json();
-        cover = apiJson.data.cover;
-        title = apiJson.data.title;
-        const apiChapters = apiJson.data?.chapters;
+        if (mangaPageRes.status !== 200) {
+          throw new Error(`Failed to load manga page: ${mangaPageRes.status}`);
+        }
 
-        updateTime = apiChapters[apiChapters.length - 1].attributes.updatedAt
-          .replace("T", " ")
-          .replace("Z", "");
-        if (apiChapters) {
-          // The API returns chapters as an indexed object
-          for (const key in apiChapters) {
-            if (apiChapters.hasOwnProperty(key)) {
-              const chapterData = apiChapters[key];
-              const chapterId = chapterData.id;
-              const chapterTitle = chapterData.attributes.title;
-              // Use chapterId/mangaId format to maintain consistency
-              chapters.set(`${chapterId}`, chapterTitle);
+        const html = mangaPageRes.body;
+        const doc = new HtmlDocument(html);
+
+        // Extract cover
+        let cover = "";
+
+        // Extract title
+        const titleElement = doc.querySelector("h1");
+        let title = titleElement ? titleElement.text.trim() : "Unknown Title";
+
+        // Extract author
+        const authorElement = doc.querySelector('a[href*="/manga-author/"]');
+        const author = authorElement ? [authorElement.text.trim()] : [];
+
+        // Extract status
+        const statusSpans = doc.querySelectorAll("h1 span");
+
+        let status = [];
+        for (const span of statusSpans) {
+          if (
+            span.text.includes("連載") ||
+            span.text.includes("完結") ||
+            span.text.includes("休刊")
+          ) {
+            title = title.replace(span.text, "");
+            status = [span.text.trim()];
+            break;
+          }
+        }
+
+        // Extract genres/tags
+        const genres = [];
+        const genreElements = doc.querySelectorAll('a[href*="/manga-tag/"]');
+        for (const genreElement of genreElements) {
+          genres.push(genreElement.text.trim());
+        }
+
+        // Extract description
+        const descElement = doc.querySelector("p.line-clamp-4");
+        const description = descElement ? descElement.text.trim() : "";
+
+        // Extract manga ID from the page for API call
+        const mangaIdElement = doc.querySelector("#mangachapters, #chaplistlast");
+        let mangaId = null;
+        if (mangaIdElement) {
+          mangaId = mangaIdElement.attributes["data-mid"];
+        }
+
+        // If we couldn't get the manga ID from the page, try other selectors
+        if (!mangaId) {
+          const bookmarkData = doc.querySelector("#bookmarkData");
+          if (bookmarkData) {
+            mangaId = bookmarkData.attributes["data-mid"];
+          }
+        }
+
+        // Get detailed chapter info from API using the manga ID
+        const chapters = new Map();
+        let updateTime = "";
+
+        const apiRes = await fetch(
+          `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all&t=${Date.now()}`,
+          {
+            headers: {
+              Referer: `${baseUrl}/`,
+              Origin: `${baseUrl}/`,
+              Connection: "keep-alive",
+              "Sec-GPC": 1,
+              "User-Agent": this.ua,
+              Pragma: "no-cache",
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (apiRes.status === 200) {
+          const apiJson = await apiRes.json();
+          cover = apiJson.data.cover;
+          title = apiJson.data.title;
+          const apiChapters = apiJson.data?.chapters;
+
+          updateTime = apiChapters[apiChapters.length - 1].attributes.updatedAt
+            .replace("T", " ")
+            .replace("Z", "");
+          if (apiChapters) {
+            // The API returns chapters as an indexed object
+            for (const key in apiChapters) {
+              if (apiChapters.hasOwnProperty(key)) {
+                const chapterData = apiChapters[key];
+                const chapterId = chapterData.id;
+                const chapterTitle = chapterData.attributes.title;
+                // Use chapterId/mangaId format to maintain consistency
+                chapters.set(`${chapterId}`, chapterTitle);
+              }
             }
           }
         }
-      }
 
-      Goda.mangaId[mangaUrl] = mangaId;
-      // Create ComicDetails
-      const details = new ComicDetails({
-        id: mangaId, // Using mangaUrl as the ID since we're not using API
-        title,
-        cover,
-        description,
-        tags: {
-          作者: author,
-          状态: status,
-          标签: genres,
-        },
-        chapters: chapters,
-        updateTime,
+        Goda.mangaId[mangaUrl] = mangaId;
+        // Create ComicDetails
+        const details = new ComicDetails({
+          id: mangaId, // Using mangaUrl as the ID since we're not using API
+          title,
+          cover,
+          description,
+          tags: {
+            作者: author,
+            状态: status,
+            标签: genres,
+          },
+          chapters: chapters,
+          updateTime,
+        });
+
+        return details;
       });
-
-      return details;
     },
 
     loadEp: async (comicId, epId) => {
-      const baseUrl = this.getBaseUrl();
+      const cacheKey = `comic.${comicId}.ep.${epId}`;
+      return this._withCache(cacheKey, async () => {
+        const baseUrl = this.getBaseUrl();
 
-      let mangaId;
-      let chapterId;
-      if (epId.includes("/")) {
-        // Extract chapter ID from epId (format is chapterId/mangaId)
-        [chapterId, mangaId] = epId.split("/");
-      } else {
-        mangaId = Goda.mangaId[comicId];
-        chapterId = epId;
-      }
-
-      // Use the API to get chapter info
-      const apiRes = await fetch(
-        `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}&t=${Date.now()}`,
-        {
-          headers: {
-            Referer: `${baseUrl}/`,
-            Origin: `${baseUrl}/`,
-            Connection: "keep-alive",
-            "Sec-GPC": 1,
-            "User-Agent": this.ua,
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
-          },
-        },
-      );
-
-      const jsonData = await apiRes.json();
-
-      if (!jsonData.data || !jsonData.data.info || !jsonData.data.info.images) {
-        throw new Error("Invalid API response format");
-      }
-
-      // Extract image URLs from the JSON response
-      const imageList = jsonData.data.info.images.images;
-      const images = [];
-
-      for (let i = 0; i < imageList.length; i++) {
-        let imageUrl = imageList[i].url;
-        if (imageUrl) {
-          // If the image URL is a relative path, prepend the base API URL
-          if (imageUrl.startsWith("/")) {
-            imageUrl = "https://t40-1-4.g-mh.online" + imageUrl;
-          }
-          images.push(imageUrl);
+        let mangaId;
+        let chapterId;
+        if (epId.includes("/")) {
+          // Extract chapter ID from epId (format is chapterId/mangaId)
+          [chapterId, mangaId] = epId.split("/");
+        } else {
+          mangaId = Goda.mangaId[comicId];
+          chapterId = epId;
         }
-      }
 
-      return { images };
+        // Use the API to get chapter info
+        const apiRes = await fetch(
+          `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}&t=${Date.now()}`,
+          {
+            headers: {
+              Referer: `${baseUrl}/`,
+              Origin: `${baseUrl}/`,
+              Connection: "keep-alive",
+              "Sec-GPC": 1,
+              "User-Agent": this.ua,
+              "Cache-Control": "no-cache",
+              Pragma: "no-cache",
+            },
+          },
+        );
+
+        const jsonData = await apiRes.json();
+
+        if (!jsonData.data || !jsonData.data.info || !jsonData.data.info.images) {
+          throw new Error("Invalid API response format");
+        }
+
+        // Extract image URLs from the JSON response
+        const imageList = jsonData.data.info.images.images;
+        const images = [];
+
+        for (let i = 0; i < imageList.length; i++) {
+          let imageUrl = imageList[i].url;
+          if (imageUrl) {
+            // If the image URL is a relative path, prepend the base API URL
+            if (imageUrl.startsWith("/")) {
+              imageUrl = "https://t40-1-4.g-mh.online" + imageUrl;
+            }
+            images.push(imageUrl);
+          }
+        }
+
+        return { images };
+      });
     },
 
     onThumbnailLoad: (url) => {
