@@ -2,13 +2,15 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.3";
+  version = "1.2.5";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
 
   ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
+
+  static mangaId = {};
 
   // Main components (some optional)
   settings = {
@@ -546,68 +548,49 @@ class Goda extends ComicSource {
       // Get detailed chapter info from API using the manga ID
       const chapters = new Map();
       let updateTime = "";
-      if (mangaId) {
-        const apiRes = await fetch(
-          `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all`,
-          {
-            headers: {
-              Referer: `${baseUrl}/`,
-              Origin: `${baseUrl}/`,
-              Connection: "keep-alive",
-              "Sec-GPC": 1,
-              "User-Agent": this.ua,
-              Pragma: "no-cache",
-            },
+
+      const apiRes = await fetch(
+        `https://api-get-v3.mgsearcher.com/api/manga/get?mid=${mangaId}&mode=all&t=${Date.now()}`,
+        {
+          headers: {
+            Referer: `${baseUrl}/`,
+            Origin: `${baseUrl}/`,
+            Connection: "keep-alive",
+            "Sec-GPC": 1,
+            "User-Agent": this.ua,
+            Pragma: "no-cache",
+            "Content-Type": "application/json",
           },
-        );
+        },
+      );
 
-        if (apiRes.status === 200) {
-          const apiJson = await apiRes.json();
-          cover = apiJson.data.cover;
-          title = apiJson.data.title;
-          const apiChapters = apiJson.data?.chapters;
+      if (apiRes.status === 200) {
+        const apiJson = await apiRes.json();
+        cover = apiJson.data.cover;
+        title = apiJson.data.title;
+        const apiChapters = apiJson.data?.chapters;
 
-          updateTime = apiChapters[apiChapters.length - 1].attributes.updatedAt
-            .replace("T", " ")
-            .replace("Z", "");
-          if (apiChapters) {
-            // The API returns chapters as an indexed object
-            for (const key in apiChapters) {
-              if (apiChapters.hasOwnProperty(key)) {
-                const chapterData = apiChapters[key];
-                const chapterId = chapterData.id;
-                const chapterTitle = chapterData.attributes.title;
-                // Use chapterId/mangaId format to maintain consistency
-                chapters.set(`${chapterId}/${mangaId}`, chapterTitle);
-              }
-            }
-          }
-        }
-      } else {
-        // Fallback to extracting chapters from the HTML if we couldn't get manga ID for API
-        const chapterElements = doc.querySelectorAll(
-          "#mangachapters a, .chapteritem a",
-        );
-        for (const chapterElement of chapterElements) {
-          const chapterTitle = chapterElement.text.trim();
-          const chapterUrl = chapterElement.attributes["href"];
-          if (chapterTitle && chapterUrl) {
-            // Extract chapter ID from URL - it's in format /manga/{slug}/{chapter-id}
-            const urlParts = chapterUrl.split("/");
-            if (urlParts.length >= 4) {
-              const chapterId = urlParts[3];
-              if (chapterId) {
-                // Use mangaUrl/chapterId as the chapter ID to maintain consistency
-                chapters.set(`${chapterId}/${mangaUrl}`, chapterTitle);
-              }
+        updateTime = apiChapters[apiChapters.length - 1].attributes.updatedAt
+          .replace("T", " ")
+          .replace("Z", "");
+        if (apiChapters) {
+          // The API returns chapters as an indexed object
+          for (const key in apiChapters) {
+            if (apiChapters.hasOwnProperty(key)) {
+              const chapterData = apiChapters[key];
+              const chapterId = chapterData.id;
+              const chapterTitle = chapterData.attributes.title;
+              // Use chapterId/mangaId format to maintain consistency
+              chapters.set(`${chapterId}`, chapterTitle);
             }
           }
         }
       }
 
+      Goda.mangaId[mangaUrl] = mangaId;
       // Create ComicDetails
       const details = new ComicDetails({
-        id: mangaUrl, // Using mangaUrl as the ID since we're not using API
+        id: mangaId, // Using mangaUrl as the ID since we're not using API
         title,
         cover,
         description,
@@ -626,12 +609,19 @@ class Goda extends ComicSource {
     loadEp: async (comicId, epId) => {
       const baseUrl = this.getBaseUrl();
 
-      // Extract chapter ID from epId (format is chapterId/mangaId)
-      const [chapterId, mangaId] = epId.split("/");
+      let mangaId;
+      let chapterId;
+      if (epId.includes("/")) {
+        // Extract chapter ID from epId (format is chapterId/mangaId)
+        [chapterId, mangaId] = epId.split("/");
+      } else {
+        mangaId = Goda.mangaId[comicId];
+        chapterId = epId;
+      }
 
       // Use the API to get chapter info
       const apiRes = await fetch(
-        `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}`,
+        `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}&t=${Date.now()}`,
         {
           headers: {
             Referer: `${baseUrl}/`,
@@ -639,6 +629,7 @@ class Goda extends ComicSource {
             Connection: "keep-alive",
             "Sec-GPC": 1,
             "User-Agent": this.ua,
+            "Cache-Control": "no-cache",
             Pragma: "no-cache",
           },
         },
