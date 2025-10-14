@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.4";
+  version = "1.0.5";
 
   minAppVersion = "1.4.0";
 
@@ -314,7 +314,7 @@ class WebtoonComicSource extends ComicSource {
        */
       load: async (page) => {
         const lang = this.loadSetting("language") || "en";
-        const cacheKey = `explore.${lang}`;
+        const cacheKey = `explore.${lang}.${page}`;
 
         return this._withCache(cacheKey, async () => {
           const baseUrl = `https://www.webtoons.com/${lang}/`;

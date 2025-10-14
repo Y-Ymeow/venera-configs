@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.7";
+  version = "1.2.8";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -273,7 +273,7 @@ class Goda extends ComicSource {
       title: "GoDa 漫画",
       type: "multiPageComicList",
       load: async (page) => {
-        const cacheKey = `explore.${this.getBaseUrl()}`;
+        const cacheKey = `explore.${this.getBaseUrl()}.${page}`;
         return this._withCache(cacheKey, async () => {
           const baseUrl = this.getBaseUrl();
           const res = await Network.get(`${baseUrl}/newss/page/${page}`, {

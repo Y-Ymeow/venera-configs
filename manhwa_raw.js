@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.0.8";
+  version = "1.0.9";
 
   minAppVersion = "1.4.0";
 
@@ -325,7 +325,7 @@ class ManhwaRawComicSource extends ComicSource {
        * - for `mixed` type, use param `page` as index. for each index(0-based), return {data: [], maxPage: number?}, data is an array contains Comic[] or {title: string, comics: Comic[], viewMore: string?}
        */
       load: async (page) => {
-        const cacheKey = `explore`;
+        const cacheKey = `explore.${page}`;
         return this._withCache(cacheKey, async () => {
           // return {
           //   comics: [],

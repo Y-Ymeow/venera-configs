@@ -120,7 +120,7 @@
     "name": "Manhwa 18 CC",
     "fileName": "manhwa18cc.js",
     "key": "manhwa18cc",
-    "version": "1.0.6"
+    "version": "1.0.7"
   },
   {
     "name": "늑대닷컴",
@@ -132,19 +132,19 @@
     "name": "Goda",
     "fileName": "goda.js",
     "key": "goda",
-    "version": "1.2.7"
+    "version": "1.2.8"
   },
   {
     "name": "Manhwa Raw",
     "fileName": "manhwa_raw.js",
     "key": "manhwa_raw",
-    "version": "1.0.8"
+    "version": "1.0.9"
   },
   {
     "name": "Webtoon",
     "fileName": "webtoon.js",
     "key": "webtoon",
-    "version": "1.0.4"
+    "version": "1.0.5"
   },
   {
     "name": "嗨皮漫画",

@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.6";
+  version = "1.0.7";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -234,7 +234,7 @@ class Manhwa18cc extends ComicSource {
       type: "multiPageComicList",
       title: "Manhwa 18",
       load: async (page) => {
-        const cacheKey = `explore.${this.loadSetting("baseUrl")}`;
+        const cacheKey = `explore.${this.loadSetting("baseUrl")}.${page}`;
         return this._withCache(cacheKey, async () => {
           // 加载韩文漫画列表
           const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
