@@ -1,10 +1,11 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.4";
+  version = "1.0.5";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
+
 
   // --- Cache Implementation ---
   async _withCache(key, fetcher) {
@@ -2307,6 +2308,13 @@ class HappyComicSource extends ComicSource {
       default:
         "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
       description: "User agent for requests. Leave empty to use default.",
+    },
+    launchBrowser: {
+      title: "Launch Browser",
+      type: "callback",
+      callback: () => {
+        UI.launchBrowser("https://m.happymh.com");
+      },
     },
     enableCache: {
       title: "Enable Cache",
