@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.5";
+  version = "1.2.6";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -18,10 +18,6 @@ class Goda extends ComicSource {
       type: "select",
       title: "镜像网址",
       options: [
-        { value: "https://baozimh.org", text: "baozimh.org" },
-        { value: "https://godamh.com", text: "godamh.com" },
-        { value: "https://m.baozimh.one", text: "m.baozimh.one" },
-        { value: "https://bzmh.org", text: "bzmh.org" },
         { value: "https://g-mh.org", text: "g-mh.org" },
         { value: "https://m.g-mh.org", text: "m.g-mh.org" },
       ],
@@ -164,7 +160,7 @@ class Goda extends ComicSource {
     parts: [
       {
         // title of the part
-        name: "测试动态",
+        name: "动态分类",
 
         // fixed or random or dynamic
         // if random, need to provide `randomNumber` field, which indicates the number of comics to display at the same time
