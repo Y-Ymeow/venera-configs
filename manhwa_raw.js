@@ -7,7 +7,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.1.0";
+  version = "1.1.1";
 
   minAppVersion = "1.4.0";
 
@@ -54,7 +54,7 @@ class ManhwaRawComicSource extends ComicSource {
 
     try {
       console.log(
-        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
       );
       const newData = await fetcher();
 
@@ -88,7 +88,9 @@ class ManhwaRawComicSource extends ComicSource {
     } catch (e) {
       console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
       if (cachedData) {
-        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        console.log(
+          `[Cache] Using STALE data for ${key} due to network error.`,
+        );
         return cachedData;
       }
       throw e;
@@ -100,12 +102,12 @@ class ManhwaRawComicSource extends ComicSource {
     const deletableKeys = [];
     if (timestamps.explore) {
       Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`)
+        deletableKeys.push(`explore.${lang}`),
       );
     }
     if (timestamps.comic) {
       Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`)
+        deletableKeys.push(`comic.${id}`),
       );
     }
     return deletableKeys;
@@ -140,7 +142,7 @@ class ManhwaRawComicSource extends ComicSource {
 
       const selectedKeyIndex = await UI.showSelectDialog(
         "Select cache key to clear",
-        allKeys
+        allKeys,
       );
 
       if (selectedKeyIndex !== null) {
@@ -524,7 +526,9 @@ class ManhwaRawComicSource extends ComicSource {
         });
 
         // Parse description
-        let descriptionElement = document.querySelector("div.summary-container");
+        let descriptionElement = document.querySelector(
+          "div.summary-container",
+        );
         let description =
           (descriptionElement ? descriptionElement.text.trim() : "") ||
           "No description available";
@@ -547,35 +551,79 @@ class ManhwaRawComicSource extends ComicSource {
         );
         let altName = (altNameElement ? altNameElement.text.trim() : "") || "";
 
-        let updateTimeElement = document.querySelector(
+        let chapterDateElements = document.querySelectorAll(
           "li.wp-manga-chapter .chapter-release-date",
         );
-        let timeText = updateTimeElement ? updateTimeElement.text.trim() : "";
 
-        let updateTime;
-        if (!timeText || timeText === "") {
-          // If empty, it means today
-          const today = new Date();
-          updateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        } else {
-          // Original format is MM/DD, we need to convert to YYYY-MM-DD
-          const today = new Date();
-          const currentYear = today.getFullYear();
-          const [month, day] = timeText
-            .split("/")
-            .map((num) => parseInt(num, 10));
+        let updateTime = null;
 
-          // Create date with current year
-          const date = new Date(currentYear, month - 1, day);
+        if (chapterDateElements.length > 0) {
+          const firstDateElement = chapterDateElements[0];
+          const isNew = firstDateElement.querySelector("a.c-new-tag");
 
-          // If the date is in the future (meaning it's probably from last year)
-          if (date > today) {
-            date.setFullYear(currentYear - 1);
+          const parseDate = (timeText) => {
+            if (!timeText) return null;
+            const today = new Date();
+            const currentYear = today.getFullYear();
+            const parts = timeText.split("/");
+            if (parts.length !== 2) return null;
+
+            const [month, day] = parts.map((num) => parseInt(num, 10));
+            if (isNaN(month) || isNaN(day)) return null;
+
+            const date = new Date(currentYear, month - 1, day);
+            if (date > today) {
+              date.setFullYear(currentYear - 1);
+            }
+            return date;
+          };
+
+          if (isNew) {
+            const pastDates = [];
+            for (let i = 1; i < chapterDateElements.length; i++) {
+              const timeText = chapterDateElements[i].text.trim();
+              const date = parseDate(timeText);
+              if (date) {
+                pastDates.push(date);
+              }
+              if (pastDates.length >= 5) break; // Use up to 5 past dates
+            }
+
+            if (pastDates.length > 0) {
+              let estimatedDate;
+              if (pastDates.length > 1) {
+                // Calculate average interval
+                let totalInterval = 0;
+                for (let i = 0; i < pastDates.length - 1; i++) {
+                  const interval =
+                    pastDates[i].getTime() - pastDates[i + 1].getTime();
+                  totalInterval += interval;
+                }
+                const avgInterval = totalInterval / (pastDates.length - 1);
+                estimatedDate = new Date(pastDates[0].getTime() + avgInterval);
+              } else {
+                // Fallback for only one past chapter: add 7 days
+                estimatedDate = new Date(pastDates[0].getTime());
+                estimatedDate.setDate(estimatedDate.getDate() + 7);
+              }
+
+              // Do not go past today
+              const today = new Date();
+              if (estimatedDate > today) {
+                estimatedDate = today;
+              }
+
+              updateTime = `${estimatedDate.getFullYear()}-${String(estimatedDate.getMonth() + 1).padStart(2, "0")}-${String(estimatedDate.getDate()).padStart(2, "0")}`;
+            }
+            // If no past dates, updateTime remains null
+          } else {
+            const timeText = firstDateElement.text.trim();
+            const date = parseDate(timeText);
+            if (date) {
+              updateTime = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+            }
           }
-
-          updateTime = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         }
-
         // Parse chapters
         let chapterElements = document.querySelectorAll("li.wp-manga-chapter");
         const chapters = new Map();
