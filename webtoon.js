@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.5";
+  version = "1.0.6";
 
   minAppVersion = "1.4.0";
 
@@ -77,7 +77,9 @@ class WebtoonComicSource extends ComicSource {
     } catch (e) {
       console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
       if (cachedData) {
-        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        console.log(
+          `[Cache] Using STALE data for ${key} due to network error.`,
+        );
         return cachedData;
       }
       throw e;
@@ -235,6 +237,7 @@ class WebtoonComicSource extends ComicSource {
    * @returns {string} - 格式化后的路径和title_no字符串，格式为"path:titleNo"
    */
   extractWebtoonPathAndId(url) {
+    const lang = this.loadSetting("language") || "en";
     // 提取host和list/viewer之间的路径
     const pathMatch = url.match(/\/([^\/]+)\/([^\/]+)\/(list|viewer)/i);
     if (!pathMatch) {
@@ -262,8 +265,6 @@ class WebtoonComicSource extends ComicSource {
    * @returns {string} - 完整的URL字符串
    */
   generateEpisodeUrl(pathAndId, episodeNoAndTitle = null) {
-    console.log(pathAndId);
-    console.log(episodeNoAndTitle);
     const lang = this.loadSetting("language") || "en";
     const [path, titleNo] = pathAndId.split(":");
 
@@ -442,7 +443,7 @@ class WebtoonComicSource extends ComicSource {
 
                   comics.push(
                     new Comic({
-                      id: fullUrl, // Use the full URL as the ID
+                      id: this.extractWebtoonPathAndId(fullUrl), // Use the full URL as the ID
                       title: title,
                       subTitle: author,
                       cover: cover,
