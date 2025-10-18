@@ -7,9 +7,9 @@ class Ehentai extends ComicSource {
     // unique id of the source
     key = "ehentai"
 
-    version = "1.1.4"
+    version = "1.1.6"
 
-    minAppVersion = "1.0.0"
+    minAppVersion = "1.5.3"
 
     // update url
     url = "https://git.nyne.dev/nyne/venera-configs/raw/branch/main/ehentai.js"
@@ -38,6 +38,35 @@ class Ehentai extends ComicSource {
             id: id,
             token: token
         }
+    }
+
+    async checkEHEvent() {
+        if (!this.isLogged) {
+            return;
+        }
+        if (!this.loadSetting("ehevent")) {
+            return;
+        }
+        const lastEvent = this.loadData("lastEventTime");
+        const newTime = new Date().toISOString().split("T")[0];
+        if (lastEvent == newTime) {
+            return;
+        }
+        const res = await Network.get("https://e-hentai.org/news.php", {});
+        if (res.status !== 200) {
+            return;
+        }
+        this.saveData("lastEventTime", newTime);
+        const document = new HtmlDocument(res.body);
+        const eventPane = document.getElementById("eventpane");
+        if (eventPane == null) {
+            return;
+        }
+        const dawnInfo = eventPane.querySelector("div > p:nth-child(2)");
+        if (dawnInfo == null) {
+            return;
+        }
+        UI.showMessage(dawnInfo.text);
     }
 
     // [Optional] account related
@@ -193,6 +222,9 @@ class Ehentai extends ComicSource {
      * @returns {Promise<{comics: Comic[], next: string?}>}
      */
     async getGalleries(url, isLeaderBoard) {
+        try {
+            this.checkEHEvent();
+        } catch (_) {}
         let t = isLeaderBoard ? 1 : 0;
         let res
         try {
@@ -438,6 +470,9 @@ class Ehentai extends ComicSource {
             let stars = options[1];
             let language = options[2];
             let fcats = 1023
+            if (!Array.isArray(category)) {
+                category = [category];
+            }
             for(let c of category) {
                 fcats -= 1 << Number(c)
             }
@@ -566,6 +601,9 @@ class Ehentai extends ComicSource {
          * @returns {Promise<{folders: {[p: string]: string}, favorited: string[]}>} - `folders` is a map of folder id to folder name, `favorited` is a list of folder id which contains the comic
          */
         loadFolders: async (comicId) => {
+            try {
+                this.checkEHEvent();
+            } catch (_) {}
             let res = await Network.get(`${this.baseUrl}/favorites.php`, {});
             if (res.status !== 200) {
                 throw `Invalid status code: ${res.status}`
@@ -615,6 +653,9 @@ class Ehentai extends ComicSource {
          * @returns {Promise<ComicDetails>}
          */
         loadInfo: async (id) => {
+            try {
+                this.checkEHEvent();
+            } catch (_) {}
             let res = await Network.get(id, {
                 'cookie': 'nw=1'
             });
@@ -625,6 +666,31 @@ class Ehentai extends ComicSource {
                 throw `Exception: empty data\nYou may not have permission to access this page.`
             }
             let document = new HtmlDocument(res.body);
+
+            if (this.isLogged && this.loadSetting("hvevent")) {
+                const eventPane = document.getElementById("eventpane");
+                if (eventPane != null) {
+                    const hvUrl = eventPane.querySelector('div > a')?.attributes['href'];
+                    if (hvUrl != null) {
+                        UI.showDialog(
+                            "HentaiVerse",
+                            this.translate("hentaiverse"),
+                            [
+                                {
+                                    text: this.translate("cancel"),
+                                    callback: () => {}
+                                },
+                                {
+                                    text: this.translate("fight"),
+                                    callback: () => {
+                                        UI.launchUrl(hvUrl);
+                                    }
+                                }
+                            ]
+                        );
+                    }
+                }
+            }
 
             let tags = new Map();
             for(let tr of document.querySelectorAll("div#taglist > table > tbody > tr")) {
@@ -865,7 +931,6 @@ class Ehentai extends ComicSource {
          */
         onImageLoad: async (image, comicId, epId, nl) => {
             let first = await this.comic.loadThumbnails(comicId)
-            console.log(first)
             let key = await this.comic.getKey(first.urls[0])
             let page = Number(image)
 
@@ -1084,32 +1149,155 @@ class Ehentai extends ComicSource {
                 let document = new HtmlDocument(res.body)
                 let body = document.querySelector("div#db")
                 let index = this.baseUrl.includes("exhentai") ? 1 : 3
-                let origin = body.children[index].children[0];
-                let originCost = origin.querySelector("div > strong").text;
-                let originSize = origin.querySelector("p > strong").text;
-                let resample = body.children[index].children[1];
-                let resampleCost = resample.querySelector("div > strong").text;
-                let resampleSize = resample.querySelector("p > strong").text;
-                return [
-                    {
+                
+                let archives = []
+                
+                // Parse H@H Download options from the table
+                let hathTable = document.querySelector("table");
+                if (hathTable) {
+                    let hathCells = hathTable.querySelectorAll("td");
+                    for (let cell of hathCells) {
+                        let link = cell.querySelector("a");
+                        if (link) {
+                            // Extract resolution from onclick attribute
+                            let onclick = link.attributes["onclick"];
+                            let resolutionMatch = onclick.match(/do_hathdl\('([^']+)'\)/);
+                            if (resolutionMatch) {
+                                let resolution = resolutionMatch[1];
+                                let linkText = link.text;
+                                let paragraphs = cell.querySelectorAll("p");
+                                let size = paragraphs.length > 1 ? paragraphs[1].text : "Unknown";
+                                let cost = paragraphs.length > 2 ? paragraphs[2].text : "Unknown";
+                                
+                                archives.push({
+                                    id: `h@h_${resolution}`,
+                                    title: `H@H ${linkText}`,
+                                    description: `Size: ${size}, Cost: ${cost}`,
+                                });
+                            }
+                        } else {
+                            // Skip disabled options (N/A) - don't add them to the list
+                            // This prevents users from accidentally selecting unavailable options
+                            let paragraphs = cell.querySelectorAll("p");
+                            if (paragraphs.length > 0) {
+                                let size = paragraphs.length > 1 ? paragraphs[1].text : "N/A";
+                                let cost = paragraphs.length > 2 ? paragraphs[2].text : "N/A";
+                                
+                                // Only add if both size and cost are available (not "N/A")
+                                if (size !== "N/A" && cost !== "N/A") {
+                                    let resolutionText = paragraphs[0].text;
+                                    archives.push({
+                                        id: `h@h_${resolutionText.toLowerCase().replace('x', '')}`,
+                                        title: `H@H ${resolutionText}`,
+                                        description: `Cost: ${cost}, Size: ${size}`,
+                                    });
+                                }
+                                // If size or cost is "N/A", we simply skip this option
+                            }
+                        }
+                    }
+                }
+                
+                // Original Download
+                let origin = body.children[index]?.children[0];
+                if (origin) {
+                    let originCost = origin.querySelector("div > strong")?.text || "Unknown";
+                    let originSize = origin.querySelector("p > strong")?.text || "Unknown";
+                    archives.push({
                         id: '0',
                         title: 'Original',
                         description: `Cost: ${originCost}, Size: ${originSize}`,
-                    },
-                    {
+                    });
+                }
+                
+                // Resample Download
+                let resample = body.children[index]?.children[1];
+                if (resample) {
+                    let resampleCost = resample.querySelector("div > strong")?.text || "Unknown";
+                    let resampleSize = resample.querySelector("p > strong")?.text || "Unknown";
+                    archives.push({
                         id: '1',
                         title: 'Resample',
                         description: `Cost: ${resampleCost}, Size: ${resampleSize}`,
-                    }
-                ]
+                    });
+                }
+                
+                document.dispose()
+                return archives
             },
             getDownloadUrl: async (cid, aid) => {
-                let data = aid === '0'
-                    ? "dltype=org&dlcheck=Download+Original+Archive"
-                    : "dltype=res&dlcheck=Download+Resample+Archive"
                 let urlParseResult = this.parseUrl(cid)
                 let gid = urlParseResult.id
                 let token = urlParseResult.token
+                
+                // Handle H@H Download options
+                if (aid.startsWith('h@h_')) {
+                    let resolution = aid.substring(4); // Remove 'h@h_' prefix
+                    
+                    // For H@H downloads, send the command directly to archiver.php
+                    let hathRes = await Network.post(`${this.baseUrl}/archiver.php?gid=${gid}&token=${token}`, {
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    }, `hathdl_xres=${resolution}`)
+                    
+                    if (hathRes.status !== 200) {
+                        throw `Failed to send H@H download command: ${hathRes.status}`
+                    }
+                    
+                    // Parse response for any error messages
+                    let hathDocument = new HtmlDocument(hathRes.body)
+                    let errorElement = hathDocument.querySelector("p.br")
+                    
+                    if (errorElement) {
+                        let errorMessage = errorElement.text
+                        hathDocument.dispose()
+                        
+                        if (errorMessage.includes("H@H client")) {
+                            throw "You need an H@H client associated with your account to use this feature"
+                        } else if (errorMessage.includes("offline")) {
+                            throw "Your H@H client appears to be offline. Please start it and try again"
+                        } else if (errorMessage.includes("resolution")) {
+                            throw "This gallery cannot be downloaded at the selected resolution"
+                        } else {
+                            throw errorMessage
+                        }
+                    }
+                    
+                    // Check for success message or assume success if no error
+                    let successMessage = hathDocument.querySelector("p")?.text
+                    hathDocument.dispose()
+                    
+                    let resolutionText = resolution === 'org' ? 'Original' : 
+                                       resolution === '800' ? '800x' :
+                                       resolution === '1280' ? '1280x' :
+                                       resolution === '1920' ? '1920x' :
+                                       resolution === '2560' ? '2560x' : resolution;
+                    
+                    // For H@H downloads, return a special value to indicate remote download
+                    // This should close the window without creating a local download task
+                    // let message = successMessage && successMessage.includes("successfully") 
+                    //     ? `H@H download command sent successfully (${resolutionText}). Check your H@H client.`
+                    //     : `H@H download command sent (${resolutionText}). Check your H@H client.`;
+                    
+                    // // Show success message to user
+                    // UI.showMessage(message);
+                    
+                    // Return empty string to avoid type error and prevent download task creation
+                    return "";
+                }
+                
+                // Handle regular downloads (Original and Resample)
+                let data;
+                switch(aid) {
+                    case '0':
+                        data = "dltype=org&dlcheck=Download+Original+Archive";
+                        break;
+                    case '1':
+                        data = "dltype=res&dlcheck=Download+Resample+Archive";
+                        break;
+                    default:
+                        throw "Invalid archive type";
+                }
+                
                 let res = await Network.post(`${this.baseUrl}/archiver.php?gid=${gid}&token=${token}`, {
                     "Content-Type": "application/x-www-form-urlencoded",
                 }, data)
@@ -1151,6 +1339,16 @@ class Ehentai extends ComicSource {
          * @returns {{action: string, keyword: string, param: string?}}
          */
         onClickTag: (namespace, tag) => {
+            if (namespace == "Category") {
+                const categories = ["misc", "doujinshi", "manga", "artist cg", "game cg", "image set", "cosplay", "asian porn", "non-h", "western"];
+                return {
+                    page: "search",
+                    attributes: {
+                        'keyword': "",
+                        'options': [categories.indexOf(tag.toLowerCase()).toString(), "", ""]
+                    }
+                };
+            }
             if(tag.includes(' ')) {
                 tag = `"${tag}"`
             }
@@ -1219,12 +1417,27 @@ class Ehentai extends ComicSource {
             ],
             default: 'e-hentai.org',
         },
+        ehevent: {
+            title: "ehevent",
+            type: "switch",
+            default: false
+        },
+        hvevent: {
+            title: "hvevent",
+            type: "switch",
+            default: false
+        },
     }
 
     // [Optional] translations for the strings in this config
     translation = {
         'zh_CN': {
             "domain": "域名",
+            "ehevent": "触发黎明事件",
+            "hvevent": "提示HV遭遇战",
+            "hentaiverse": "你遇到了怪物！",
+            "fight":"战斗",
+            "cancel":"取消",
             "language": "语言",
             "artist": "画师",
             "male": "男性",
@@ -1246,9 +1459,21 @@ class Ehentai extends ComicSource {
             "Category": "分类",
             "Min Stars": "最少星星",
             "Language": "语言",
+            "H@H Original": "H@H 原版",
+            "H@H 800x": "H@H 800x",
+            "H@H 1280x": "H@H 1280x", 
+            "H@H 1920x": "H@H 1920x",
+            "H@H 2560x": "H@H 2560x",
+            "Original": "原版",
+            "Resample": "重采样",
         },
         'zh_TW': {
             'domain': '域名',
+            "ehevent": "觸發黎明事件",
+            "hvevent": "提示HV遭遇戰",
+            "hentaiverse": "你遇到了怪物！",
+            "fight":"戰鬥",
+            "cancel":"取消",
             "language": "語言",
             "artist": "畫師",
             "male": "男性",
@@ -1270,6 +1495,49 @@ class Ehentai extends ComicSource {
             "Category": "分類",
             "Min Stars": "最少星星",
             "Language": "語言",
+            "H@H Original": "H@H 原版",
+            "H@H 800x": "H@H 800x",
+            "H@H 1280x": "H@H 1280x",
+            "H@H 1920x": "H@H 1920x", 
+            "H@H 2560x": "H@H 2560x",
+            "Original": "原版",
+            "Resample": "重採樣",
+        },
+        'en_US': {
+            "domain": "Domain",
+            "ehevent": "Trigger Dawn Event",
+            "hvevent": "HV Encounter Alert",
+            "hentaiverse": "You have encountered a monster!",
+            "fight": "Fight",
+            "cancel": "Cancel",
+            "language": "Language",
+            "artist": "Artist",
+            "male": "Male",
+            "female": "Female",
+            "mixed": "Mixed",
+            "other": "Other",
+            "parody": "Parody",
+            "character": "Character",
+            "group": "Group",
+            "cosplayer": "Cosplayer",
+            "reclass": "Reclass",
+            "Languages": "Languages",
+            "Artists": "Artists",
+            "Characters": "Characters",
+            "Groups": "Groups",
+            "Tags": "Tags",
+            "Parodies": "Parodies",
+            "Categories": "Categories",
+            "Category": "Category",
+            "Min Stars": "Min Stars",
+            "Language": "Language",
+            "H@H Original": "H@H Original",
+            "H@H 800x": "H@H 800x",
+            "H@H 1280x": "H@H 1280x",
+            "H@H 1920x": "H@H 1920x",
+            "H@H 2560x": "H@H 2560x",
+            "Original": "Original",
+            "Resample": "Resample"
         },
     }
 }
