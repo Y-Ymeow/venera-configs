@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.8";
+  version = "1.0.9";
   minAppVersion = "1.4.0";
 
   url =
@@ -70,7 +70,7 @@ class Manwa extends ComicSource {
 
     try {
       console.log(
-        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
       );
       const newData = await fetcher();
 
@@ -104,7 +104,9 @@ class Manwa extends ComicSource {
     } catch (e) {
       console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
       if (cachedData) {
-        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        console.log(
+          `[Cache] Using STALE data for ${key} due to network error.`,
+        );
         return cachedData;
       }
       throw e;
@@ -116,12 +118,12 @@ class Manwa extends ComicSource {
     const deletableKeys = [];
     if (timestamps.explore) {
       Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`)
+        deletableKeys.push(`explore.${lang}`),
       );
     }
     if (timestamps.comic) {
       Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`)
+        deletableKeys.push(`comic.${id}`),
       );
     }
     return deletableKeys;
@@ -156,7 +158,7 @@ class Manwa extends ComicSource {
 
       const selectedKeyIndex = await UI.showSelectDialog(
         "Select cache key to clear",
-        allKeys
+        allKeys,
       );
 
       if (selectedKeyIndex !== null) {
@@ -444,7 +446,9 @@ class Manwa extends ComicSource {
 
           const document = new HtmlDocument(res.body);
           const comicElements = document.querySelectorAll("#rankList_2 > a");
-          const comics = comicElements.map((element) => this.parseComic(element));
+          const comics = comicElements.map((element) =>
+            this.parseComic(element),
+          );
 
           // Return as a single category
           return [
@@ -589,8 +593,6 @@ class Manwa extends ComicSource {
         const images = imageElements.map(
           (element) => element.attributes["data-r-src"],
         );
-
-        images.pop();
 
         return {
           images: images,

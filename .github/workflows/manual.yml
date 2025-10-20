@@ -2,8 +2,8 @@ name: Sync Fork
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # 每天凌晨 3 点自动运行
-  workflow_dispatch:       # 也允许手动触发
+    - cron: "0 3 * * *" # 每天凌晨 3 点自动运行
+  workflow_dispatch: # 也允许手动触发
 
 # Ensure the workflow has the permissions needed to push/merge and create PRs.
 permissions:
@@ -12,7 +12,6 @@ permissions:
 
 jobs:
   sync:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -32,3 +31,18 @@ jobs:
           auto_merge: true
           # retries: 4
           # retry_after: 60
+      - name: Create merged JSON file
+        id: merge_json
+        run: |
+          # Combine index.json and index2.json, removing duplicates, and save to merge.json
+          jq -s 'add | unique_by(.key)' index.json index2.json > merge.json
+          echo "changes=$(git status --porcelain=v1 | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Commit and push changes
+        if: steps.merge_json.outputs.changes > 0
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add merge.json
+          git commit -m "chore: Create/update merged sources in merge.json"
+          git push

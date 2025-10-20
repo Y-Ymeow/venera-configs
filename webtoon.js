@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.6";
+  version = "1.0.7";
 
   minAppVersion = "1.4.0";
 
@@ -1149,6 +1149,9 @@ class WebtoonComicSource extends ComicSource {
         const episodeList = data.result.episodeList || [];
         const chapters = {};
 
+        let updateTime = exisodeList[exisodeList.length - 1].exposureDateMillis;
+        updateTime = new Date(updateTime).format("YYYY-MM-DD HH:mm:ss");
+
         // Process episodes to extract chapter information
         episodeList.map((episode) => {
           const epId = episode.episodeNo; // Use viewerLink as the episode ID
@@ -1165,9 +1168,11 @@ class WebtoonComicSource extends ComicSource {
           subTitle: author,
           cover: cover,
           description: description,
-          tags: genre ? { 标签: [genre], 作者: artist } : {},
+          tags: genre
+            ? { 标签: [genre], 作者: artist, 状态: [statusText] }
+            : {},
           chapters: chapters,
-          updateTime: statusText,
+          updateTime: updateTime,
           url: url,
         });
       });
