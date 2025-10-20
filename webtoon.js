@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.7";
+  version = "1.0.8";
 
   minAppVersion = "1.4.0";
 
@@ -1149,8 +1149,26 @@ class WebtoonComicSource extends ComicSource {
         const episodeList = data.result.episodeList || [];
         const chapters = {};
 
-        let updateTime = exisodeList[exisodeList.length - 1].exposureDateMillis;
-        updateTime = new Date(updateTime).format("YYYY-MM-DD HH:mm:ss");
+        let updateTimeString;
+        let updateDeteO;
+        if (
+          episodeList.length > 0 &&
+          episodeList[episodeList.length - 1].exposureDateMillis
+        ) {
+          updateDeteO = new Date(
+            Number(episodeList[episodeList.length - 1].exposureDateMillis),
+          );
+        } else {
+          updateDeteO = new Date();
+        }
+        const year = updateDeteO.getFullYear();
+        const month = String(updateDeteO.getMonth() + 1).padStart(2, "0");
+        const day = String(updateDeteO.getDate()).padStart(2, "0");
+        const hours = String(updateDeteO.getHours()).padStart(2, "0");
+        const minutes = String(updateDeteO.getMinutes()).padStart(2, "0");
+        const seconds = String(updateDeteO.getSeconds()).padStart(2, "0");
+        updateTimeString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        console.warn(updateTimeString);
 
         // Process episodes to extract chapter information
         episodeList.map((episode) => {
@@ -1172,7 +1190,7 @@ class WebtoonComicSource extends ComicSource {
             ? { 标签: [genre], 作者: artist, 状态: [statusText] }
             : {},
           chapters: chapters,
-          updateTime: updateTime,
+          updateTime: updateTimeString,
           url: url,
         });
       });
