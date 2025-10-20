@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PERSONAL_TOKEN != '' && secrets.PERSONAL_TOKEN || github.token }}
       - uses: tgymnich/fork-sync@v2.0
         with:
           owner: venera-app
