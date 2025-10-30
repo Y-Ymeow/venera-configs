@@ -67,6 +67,12 @@
     "description": "禁漫天堂漫畫源, 不能使用時請嘗試切換分流"
   },
   {
+    "name": "Komga",
+    "fileName": "komga.js",
+    "key": "komga",
+    "version": "1.0.0"
+  },
+  {
     "name": "Lanraragi",
     "fileName": "lanraragi.js",
     "key": "lanraragi",
@@ -137,7 +143,7 @@
     "name": "紳士漫畫",
     "fileName": "wnacg.js",
     "key": "wnacg",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "紳士漫畫漫畫源, 不能使用時請嘗試更換URL"
   },
   {
