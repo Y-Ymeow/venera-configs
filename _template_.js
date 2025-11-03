@@ -1,775 +1,1441 @@
-/** @type {import('./_venera_.js')} */
+/*
+Venera JavaScript Library
+
+This library provides a set of APIs for interacting with the Venera app.
+*/
 
 /**
- * @typedef {Object} PageJumpTarget
- * @Property {string} page - The page name (search, category)
- * @Property {Object} attributes - The attributes of the page
- *
- * @example
- * {
- *     page: "search",
- *     attributes: {
- *         keyword: "example",
- *     },
- * }
+ * @function sendMessage
+ * @global
+ * @param {Object} message
+ * @returns {any}
  */
 
-class NewComicSource extends ComicSource {
-  // Note: The fields which are marked as [Optional] should be removed if not used
+/**
+ * Set a timeout to execute a callback function after a specified delay.
+ * @param callback {Function}
+ * @param delay {number} - delay in milliseconds
+ */
+function setTimeout(callback, delay) {
+    sendMessage({
+        method: 'delay',
+        time: delay,
+    }).then(callback);
+}
 
-  // name of the source
-  name = "";
-
-  // unique id of the source
-  key = "";
-
-  version = "1.0.0";
-
-  minAppVersion = "1.4.0";
-
-  // update url
-  url = "";
-
-  /**
-   * [Optional] init function
-   */
-  init() {}
-
-  // [Optional] account related
-  account = {
+/// encode, decode, hash, decrypt
+let Convert = {
     /**
-     * [Optional] login with account and password, return any value to indicate success
-     * @param account {string}
-     * @param pwd {string}
-     * @returns {Promise<any>}
+     * @param str {string}
+     * @returns {ArrayBuffer}
      */
-    login: async (account, pwd) => {
-      /*
-            Use Network to send request
-            Use this.saveData to save data
-            `account` and `pwd` will be saved to local storage automatically if login success
-            ```
-            let res = await Network.post('https://example.com/login', {
-                'content-type': 'application/x-www-form-urlencoded;charset=utf-8'
-            }, `account=${account}&password=${pwd}`)
-
-            if(res.status == 200) {
-                let json = JSON.parse(res.body)
-                this.saveData('token', json.token)
-                return 'ok'
-            }
-
-            throw 'Failed to login'
-            ```
-            */
+    encodeUtf8: (str) => {
+        return sendMessage({
+            method: "convert",
+            type: "utf8",
+            value: str,
+            isEncode: true
+        });
     },
 
     /**
-     * [Optional] login with webview
+     * @param value {ArrayBuffer}
+     * @returns {string}
      */
-    loginWithWebview: {
-      url: "",
-      /**
-       * check login status
-       * @param url {string} - current url
-       * @param title {string} - current title
-       * @returns {boolean} - return true if login success
-       */
-      checkStatus: (url, title) => {},
-      /**
-       * [Optional] Callback when login success
-       */
-      onLoginSuccess: () => {},
+    decodeUtf8: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "utf8",
+            value: value,
+            isEncode: false
+        });
     },
 
     /**
-     * [Optional] login with cookies
-     * Note: If `this.account.login` is implemented, this will be ignored
+     * @param str {string}
+     * @returns {ArrayBuffer}
      */
-    loginWithCookies: {
-      fields: ["ipb_member_id", "ipb_pass_hash", "igneous", "star"],
-      /**
-       * Validate cookies, return false if cookies are invalid.
-       *
-       * Use `Network.setCookies` to set cookies before validate.
-       * @param values {string[]} - same order as `fields`
-       * @returns {Promise<boolean>}
-       */
-      validate: async (values) => {},
+    encodeGbk: (str) => {
+        return sendMessage({
+            method: "convert",
+            type: "gbk",
+            value: str,
+            isEncode: true
+        });
     },
 
     /**
-     * logout function, clear account related data
+     * @param value {ArrayBuffer}
+     * @returns {string}
      */
-    logout: () => {
-      /*
-            ```
-            this.deleteData('token')
-            Network.deleteCookies('https://example.com')
-            ```
-            */
-    },
-
-    // {string?} - register url
-    registerWebsite: null,
-  };
-
-  // explore page list
-  explore = [
-    {
-      // title of the page.
-      // title is used to identify the page, it should be unique
-      title: "",
-
-      /// multiPartPage or multiPageComicList or mixed
-      type: "multiPartPage",
-
-      /**
-       * load function
-       * @param page {number | null} - page number, null for `singlePageWithMultiPart` type
-       * @returns {{}}
-       * - for `multiPartPage` type, return [{title: string, comics: Comic[], viewMore: PageJumpTarget}]
-       * - for `multiPageComicList` type, for each page(1-based), return {comics: Comic[], maxPage: number}
-       * - for `mixed` type, use param `page` as index. for each index(0-based), return {data: [], maxPage: number?}, data is an array contains Comic[] or {title: string, comics: Comic[], viewMore: string?}
-       */
-      load: async (page) => {
-        /*
-                ```
-                let res = await Network.get("https://example.com")
-
-                if (res.status !== 200) {
-                    throw `Invalid status code: ${res.status}`
-                }
-
-                let data = JSON.parse(res.body)
-
-                function parseComic(comic) {
-                    // ...
-
-                    return new Comic({
-                        id: id,
-                        title: title,
-                        subTitle: author,
-                        cover: cover,
-                        tags: tags,
-                        description: description
-                    })
-                }
-
-                let comics = {}
-                comics["hot"] = data["results"]["recComics"].map(parseComic)
-                comics["latest"] = data["results"]["newComics"].map(parseComic)
-
-                return comics
-                ```
-                */
-      },
-
-      /**
-       * Only use for `multiPageComicList` type.
-       * `loadNext` would be ignored if `load` function is implemented.
-       * @param next {string | null} - next page token, null if first page
-       * @returns {Promise<{comics: Comic[], next: string?}>} - next is null if no next page.
-       */
-      loadNext(next) {},
-    },
-  ];
-
-  // categories
-  category = {
-    /// title of the category page, used to identify the page, it should be unique
-    title: "",
-    parts: [
-      {
-        // title of the part
-        name: "Theme",
-
-        // fixed or random or dynamic
-        // if random, need to provide `randomNumber` field, which indicates the number of comics to display at the same time
-        // if dynamic, need to provide `loader` field, which indicates the function to load comics
-        type: "fixed",
-
-        // Remove this if type is dynamic
-        categories: [
-          {
-            label: "Category1",
-            /**
-             * @type {PageJumpTarget}
-             */
-            target: {
-              page: "category",
-              attributes: {
-                category: "category1",
-                param: null,
-              },
-            },
-          },
-        ],
-
-        // number of comics to display at the same time
-        // randomNumber: 5,
-
-        // load function for dynamic type
-        // loader: async () => {
-        //     return [
-        //          // ...
-        //     ]
-        // }
-      },
-    ],
-    // enable ranking page
-    enableRankingPage: false,
-  };
-
-  /// category comic loading related
-  categoryComics = {
-    /**
-     * load comics of a category
-     * @param category {string} - category name
-     * @param param {string?} - category param
-     * @param options {string[]} - options from optionList
-     * @param page {number} - page number
-     * @returns {Promise<{comics: Comic[], maxPage: number}>}
-     */
-    load: async (category, param, options, page) => {
-      /*
-            ```
-            let data = JSON.parse((await Network.get('...')).body)
-            let maxPage = data.maxPage
-
-            function parseComic(comic) {
-                // ...
-
-                return new Comic({
-                    id: id,
-                    title: title,
-                    subTitle: author,
-                    cover: cover,
-                    tags: tags,
-                    description: description
-                })
-            }
-
-            return {
-                comics: data.list.map(parseComic),
-                maxPage: maxPage
-            }
-            ```
-            */
-    },
-    // [Optional] provide options for category comic loading
-    optionList: [
-      {
-        // [Optional] The label will not be displayed if it is empty.
-        label: "",
-        // For a single option, use `-` to separate the value and text, left for value, right for text
-        options: ["newToOld-New to Old", "oldToNew-Old to New"],
-        // [Optional] {string[]} - show this option only when the category not in the list
-        notShowWhen: null,
-        // [Optional] {string[]} - show this option only when the category in the list
-        showWhen: null,
-      },
-    ],
-    /**
-     * [Optional] load options dynamically. If `optionList` is provided, this will be ignored.
-     * @since 1.5.0
-     * @param category {string}
-     * @param param {string?}
-     * @return {Promise<{options: string[], label?: string}[]>} - return a list of option group, each group contains a list of options
-     */
-    optionLoader: async (category, param) => {
-      return [
-        {
-          // [Optional] The label will not be displayed if it is empty.
-          label: "",
-          // For a single option, use `-` to separate the value and text, left for value, right for text
-          options: ["newToOld-New to Old", "oldToNew-Old to New"],
-        },
-      ];
-    },
-    ranking: {
-      // For a single option, use `-` to separate the value and text, left for value, right for text
-      options: ["day-Day", "week-Week"],
-      /**
-       * load ranking comics
-       * @param option {string} - option from optionList
-       * @param page {number} - page number
-       * @returns {Promise<{comics: Comic[], maxPage: number}>}
-       */
-      load: async (option, page) => {
-        /*
-                ```
-                let data = JSON.parse((await Network.get('...')).body)
-                let maxPage = data.maxPage
-
-                function parseComic(comic) {
-                    // ...
-
-                    return new Comic({
-                        id: id,
-                        title: title,
-                        subTitle: author,
-                        cover: cover,
-                        tags: tags,
-                        description: description
-                    })
-                }
-
-                return {
-                    comics: data.list.map(parseComic),
-                    maxPage: maxPage
-                }
-                ```
-                */
-      },
-    },
-  };
-
-  /// search related
-  search = {
-    /**
-     * load search result
-     * @param keyword {string}
-     * @param options {string[]} - options from optionList
-     * @param page {number}
-     * @returns {Promise<{comics: Comic[], maxPage: number}>}
-     */
-    load: async (keyword, options, page) => {
-      /*
-            ```
-            let data = JSON.parse((await Network.get('...')).body)
-            let maxPage = data.maxPage
-
-            function parseComic(comic) {
-                // ...
-
-                return new Comic({
-                    id: id,
-                    title: title,
-                    subTitle: author,
-                    cover: cover,
-                    tags: tags,
-                    description: description
-                })
-            }
-
-            return {
-                comics: data.list.map(parseComic),
-                maxPage: maxPage
-            }
-            ```
-            */
+    decodeGbk: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "gbk",
+            value: value,
+            isEncode: false
+        });
     },
 
     /**
-     * load search result with next page token.
-     * The field will be ignored if `load` function is implemented.
-     * @param keyword {string}
-     * @param options {(string)[]} - options from optionList
-     * @param next {string | null}
-     * @returns {Promise<{comics: Comic[], maxPage: number}>}
+     * @param {ArrayBuffer} value
+     * @returns {string}
      */
-    loadNext: async (keyword, options, next) => {},
-
-    // provide options for search
-    optionList: [
-      {
-        // [Optional] default is `select`
-        // type: select, multi-select, dropdown
-        // For select, there is only one selected value
-        // For multi-select, there are multiple selected values or none. The `load` function will receive a json string which is an array of selected values
-        // For dropdown, there is one selected value at most. If no selected value, the `load` function will receive a null
-        type: "select",
-        // For a single option, use `-` to separate the value and text, left for value, right for text
-        options: ["0-time", "1-popular"],
-        // option label
-        label: "sort",
-        // default selected options. If not set, use the first option as default
-        default: null,
-      },
-    ],
-
-    // enable tags suggestions
-    enableTagsSuggestions: false,
-  };
-
-  // favorite related
-  favorites = {
-    // whether support multi folders
-    multiFolder: false,
-    /**
-     * add or delete favorite.
-     * throw `Login expired` to indicate login expired, App will automatically re-login and re-add/delete favorite
-     * @param comicId {string}
-     * @param folderId {string}
-     * @param isAdding {boolean} - true for add, false for delete
-     * @param favoriteId {string?} - [Comic.favoriteId]
-     * @returns {Promise<any>} - return any value to indicate success
-     */
-    addOrDelFavorite: async (comicId, folderId, isAdding, favoriteId) => {
-      /*
-            ```
-            let res = await Network.post('...')
-            if (res.status === 401) {
-                throw `Login expired`;
-            }
-            return 'ok'
-            ```
-            */
+    encodeBase64: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "base64",
+            value: value,
+            isEncode: true
+        });
     },
+
     /**
-     * load favorite folders.
-     * throw `Login expired` to indicate login expired, App will automatically re-login retry.
-     * if comicId is not null, return favorite folders which contains the comic.
-     * @param comicId {string?}
-     * @returns {Promise<{folders: {[p: string]: string}, favorited: string[]}>} - `folders` is a map of folder id to folder name, `favorited` is a list of folder id which contains the comic
+     * @param {string} value
+     * @returns {ArrayBuffer}
      */
-    loadFolders: async (comicId) => {
-      /*
-            ```
-            let data = JSON.parse((await Network.get('...')).body)
-
-            let folders = {}
-
-            data.folders.forEach((f) => {
-                folders[f.id] = f.name
-            })
-
-            return {
-                folders: folders,
-                favorited: data.favorited
-            }
-            ```
-            */
+    decodeBase64: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "base64",
+            value: value,
+            isEncode: false
+        });
     },
+
     /**
-     * add a folder
-     * @param name {string}
-     * @returns {Promise<any>} - return any value to indicate success
+     * @param {ArrayBuffer} value
+     * @returns {ArrayBuffer}
      */
-    addFolder: async (name) => {
-      /*
-            ```
-            let res = await Network.post('...')
-            if (res.status === 401) {
-                throw `Login expired`;
-            }
-            return 'ok'
-            ```
-            */
+    md5: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "md5",
+            value: value,
+            isEncode: true
+        });
     },
+
     /**
-     * delete a folder
-     * @param folderId {string}
-     * @returns {Promise<void>} - return any value to indicate success
+     * @param {ArrayBuffer} value
+     * @returns {ArrayBuffer}
      */
-    deleteFolder: async (folderId) => {
-      /*
-            ```
-            let res = await Network.delete('...')
-            if (res.status === 401) {
-                throw `Login expired`;
-            }
-            return 'ok'
-            ```
-            */
+    sha1: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "sha1",
+            value: value,
+            isEncode: true
+        });
     },
+
     /**
-     * load comics in a folder
-     * throw `Login expired` to indicate login expired, App will automatically re-login retry.
-     * @param page {number}
-     * @param folder {string?} - folder id, null for non-multi-folder
-     * @returns {Promise<{comics: Comic[], maxPage: number}>}
+     * @param {ArrayBuffer} value
+     * @returns {ArrayBuffer}
      */
-    loadComics: async (page, folder) => {
-      /*
-            ```
-            let data = JSON.parse((await Network.get('...')).body)
-            let maxPage = data.maxPage
-
-            function parseComic(comic) {
-                // ...
-
-                return new Comic{
-                    id: id,
-                    title: title,
-                    subTitle: author,
-                    cover: cover,
-                    tags: tags,
-                    description: description
-                }
-            }
-
-            return {
-                comics: data.list.map(parseComic),
-                maxPage: maxPage
-            }
-            ```
-            */
+    sha256: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "sha256",
+            value: value,
+            isEncode: true
+        });
     },
-    /**
-     * load comics with next page token
-     * @param next {string | null} - next page token, null for first page
-     * @param folder {string}
-     * @returns {Promise<{comics: Comic[], next: string?}>}
-     */
-    loadNext: async (next, folder) => {},
-    /**
-     * If the comic source only allows one comic in one folder, set this to true.
-     */
-    singleFolderForSingleComic: false,
-  };
 
-  /// single comic related
-  comic = {
     /**
-     * load comic info
+     * @param {ArrayBuffer} value
+     * @returns {ArrayBuffer}
+     */
+    sha512: (value) => {
+        return sendMessage({
+            method: "convert",
+            type: "sha512",
+            value: value,
+            isEncode: true
+        });
+    },
+
+    /**
+     * @param key {ArrayBuffer}
+     * @param value {ArrayBuffer}
+     * @param hash {string} - md5, sha1, sha256, sha512
+     * @returns {ArrayBuffer}
+     */
+    hmac: (key, value, hash) => {
+        return sendMessage({
+            method: "convert",
+            type: "hmac",
+            value: value,
+            key: key,
+            hash: hash,
+            isEncode: true
+        });
+    },
+
+    /**
+     * @param key {ArrayBuffer}
+     * @param value {ArrayBuffer}
+     * @param hash {string} - md5, sha1, sha256, sha512
+     * @returns {string} - hex string
+     */
+    hmacString: (key, value, hash) => {
+        return sendMessage({
+            method: "convert",
+            type: "hmac",
+            value: value,
+            key: key,
+            hash: hash,
+            isEncode: true,
+            isString: true
+        });
+    },
+
+    /**
+     * @param {ArrayBuffer} value
+     * @param {ArrayBuffer} key
+     * @returns {ArrayBuffer}
+     */
+    decryptAesEcb: (value, key) => {
+        return sendMessage({
+            method: "convert",
+            type: "aes-ecb",
+            value: value,
+            key: key,
+            isEncode: false
+        });
+    },
+
+    /**
+     * @param {ArrayBuffer} value
+     * @param {ArrayBuffer} key
+     * @param {ArrayBuffer} iv
+     * @returns {ArrayBuffer}
+     */
+    decryptAesCbc: (value, key, iv) => {
+        return sendMessage({
+            method: "convert",
+            type: "aes-cbc",
+            value: value,
+            key: key,
+            iv: iv,
+            isEncode: false
+        });
+    },
+
+    /**
+     * @param {ArrayBuffer} value
+     * @param {ArrayBuffer} key
+     * @param {number} blockSize
+     * @returns {ArrayBuffer}
+     */
+    decryptAesCfb: (value, key, blockSize) => {
+        return sendMessage({
+            method: "convert",
+            type: "aes-cfb",
+            value: value,
+            key: key,
+            blockSize: blockSize,
+            isEncode: false
+        });
+    },
+
+    /**
+     * @param {ArrayBuffer} value
+     * @param {ArrayBuffer} key
+     * @param {number} blockSize
+     * @returns {ArrayBuffer}
+     */
+    decryptAesOfb: (value, key, blockSize) => {
+        return sendMessage({
+            method: "convert",
+            type: "aes-ofb",
+            value: value,
+            key: key,
+            blockSize: blockSize,
+            isEncode: false
+        });
+    },
+
+    /**
+     * @param {ArrayBuffer} value
+     * @param {ArrayBuffer} key
+     * @returns {ArrayBuffer}
+     */
+    decryptRsa: (value, key) => {
+        return sendMessage({
+            method: "convert",
+            type: "rsa",
+            value: value,
+            key: key,
+            isEncode: false
+        });
+    },
+    /** Encode bytes to hex string
+     * @param bytes {ArrayBuffer}
+     * @return {string}
+     */
+    hexEncode: (bytes) => {
+        const hexDigits = '0123456789abcdef';
+        const view = new Uint8Array(bytes);
+        let charCodes = new Uint8Array(view.length * 2);
+        let j = 0;
+
+        for (let i = 0; i < view.length; i++) {
+            let byte = view[i];
+            charCodes[j++] = hexDigits.charCodeAt((byte >> 4) & 0xF);
+            charCodes[j++] = hexDigits.charCodeAt(byte & 0xF);
+        }
+
+        return String.fromCharCode(...charCodes);
+    },
+}
+
+/**
+ * create a time-based uuid
+ *
+ * Note: the engine will generate a new uuid every time it is called
+ *
+ * To get the same uuid, please save it to the local storage
+ *
+ * @returns {string}
+ */
+function createUuid() {
+    return sendMessage({
+        method: "uuid"
+    });
+}
+
+/**
+ * Generate a random integer between min and max
+ * @param min {number}
+ * @param max {number}
+ * @returns {number}
+ */
+function randomInt(min, max) {
+    return sendMessage({
+        method: 'random',
+        type: 'int',
+        min: min,
+        max: max
+    });
+}
+
+/**
+ * Generate a random double between min and max
+ * @param min {number}
+ * @param max {number}
+ * @returns {number}
+ */
+function randomDouble(min, max) {
+    return sendMessage({
+        method: 'random',
+        type: 'double',
+        min: min,
+        max: max
+    });
+}
+
+class _Timer {
+    delay = 0;
+
+    callback = () => { };
+
+    status = false;
+
+    constructor(delay, callback) {
+        this.delay = delay;
+        this.callback = callback;
+    }
+
+    run() {
+        this.status = true;
+        this._interval();
+    }
+
+    _interval() {
+        if (!this.status) {
+            return;
+        }
+        this.callback();
+        setTimeout(this._interval.bind(this), this.delay);
+    }
+
+    cancel() {
+        this.status = false;
+    }
+}
+
+function setInterval(callback, delay) {
+    let timer = new _Timer(delay, callback);
+    timer.run();
+    return timer;
+}
+
+/**
+ * Create a cookie object.
+ * @param name {string}
+ * @param value {string}
+ * @param domain {string}
+ * @constructor
+ */
+function Cookie({name, value, domain}) {
+    this.name = name;
+    this.value = value;
+    this.domain = domain;
+}
+
+/**
+ * Network object for sending HTTP requests and managing cookies.
+ * @namespace Network
+ */
+let Network = {
+    /**
+     * Sends an HTTP request.
+     * @param {string} method - The HTTP method (e.g., GET, POST, PUT, PATCH, DELETE).
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @param data - The data to send with the request.
+     * @returns {Promise<{status: number, headers: {}, body: ArrayBuffer}>} The response from the request.
+     */
+    async fetchBytes(method, url, headers, data) {
+        let result = await sendMessage({
+            method: 'http',
+            http_method: method,
+            bytes: true,
+            url: url,
+            headers: headers,
+            data: data,
+        });
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        return result;
+    },
+
+    /**
+     * Sends an HTTP request.
+     * @param {string} method - The HTTP method (e.g., GET, POST, PUT, PATCH, DELETE).
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @param data - The data to send with the request.
+     * @returns {Promise<{status: number, headers: {}, body: string}>} The response from the request.
+     */
+    async sendRequest(method, url, headers, data) {
+        let result = await sendMessage({
+            method: 'http',
+            http_method: method,
+            url: url,
+            headers: headers,
+            data: data,
+        });
+
+        if (result.error) {
+            throw result.error;
+        }
+
+        return result;
+    },
+
+    /**
+     * Sends an HTTP GET request.
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @returns {Promise<{status: number, headers: {}, body: string}>} The response from the request.
+     */
+    async get(url, headers) {
+        return this.sendRequest('GET', url, headers);
+    },
+
+    /**
+     * Sends an HTTP POST request.
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @param data - The data to send with the request.
+     * @returns {Promise<{status: number, headers: {}, body: string}>} The response from the request.
+     */
+    async post(url, headers, data) {
+        return this.sendRequest('POST', url, headers, data);
+    },
+
+    /**
+     * Sends an HTTP PUT request.
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @param data - The data to send with the request.
+     * @returns {Promise<{status: number, headers: {}, body: string}>} The response from the request.
+     */
+    async put(url, headers, data) {
+        return this.sendRequest('PUT', url, headers, data);
+    },
+
+    /**
+     * Sends an HTTP PATCH request.
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @param data - The data to send with the request.
+     * @returns {Promise<{status: number, headers: {}, body: string}>} The response from the request.
+     */
+    async patch(url, headers, data) {
+        return this.sendRequest('PATCH', url, headers, data);
+    },
+
+    /**
+     * Sends an HTTP DELETE request.
+     * @param {string} url - The URL to send the request to.
+     * @param {Object} headers - The headers to include in the request.
+     * @returns {Promise<{status: number, headers: {}, body: string}>} The response from the request.
+     */
+    async delete(url, headers) {
+        return this.sendRequest('DELETE', url, headers);
+    },
+
+    /**
+     * Sets cookies for a specific URL.
+     * @param {string} url - The URL to set the cookies for.
+     * @param {Cookie[]} cookies - The cookies to set.
+     */
+    setCookies(url, cookies) {
+        sendMessage({
+            method: 'cookie',
+            function: 'set',
+            url: url,
+            cookies: cookies,
+        });
+    },
+
+    /**
+     * Retrieves cookies for a specific URL.
+     * @param {string} url - The URL to get the cookies from.
+     * @returns {Promise<Cookie[]>} The cookies for the given URL.
+     */
+    getCookies(url) {
+        return sendMessage({
+            method: 'cookie',
+            function: 'get',
+            url: url,
+        });
+    },
+
+    /**
+     * Deletes cookies for a specific URL.
+     * @param {string} url - The URL to delete the cookies from.
+     */
+    deleteCookies(url) {
+        sendMessage({
+            method: 'cookie',
+            function: 'delete',
+            url: url,
+        });
+    },
+};
+
+/**
+ * [fetch] function for sending HTTP requests. Same api as the browser fetch.
+ * @param url {string}
+ * @param [options] {{method?: string, headers?: Object, body?: any}}
+ * @returns {Promise<{ok: boolean, status: number, statusText: string, headers: {}, arrayBuffer: (function(): Promise<ArrayBuffer>), text: (function(): Promise<string>), json: (function(): Promise<any>)}>}
+ * @since 1.2.0
+ */
+async function fetch(url, options) {
+    let method = 'GET';
+    let headers = {};
+    let data = null;
+
+    if (options) {
+        method = options.method || method;
+        headers = options.headers || headers;
+        data = options.body || data;
+    }
+
+    let result = await Network.fetchBytes(method, url, headers, data);
+
+    return {
+        ok: result.status >= 200 && result.status < 300,
+        status: result.status,
+        statusText: '',
+        headers: result.headers,
+        arrayBuffer: async () => result.body,
+        text: async () => Convert.decodeUtf8(result.body),
+        json: async () => JSON.parse(Convert.decodeUtf8(result.body)),
+    }
+}
+
+/**
+ * HtmlDocument class for parsing HTML and querying elements.
+ */
+class HtmlDocument {
+    static _key = 0;
+
+    key = 0;
+
+    /**
+     * Constructor for HtmlDocument.
+     * @param {string} html - The HTML string to parse.
+     */
+    constructor(html) {
+        this.key = HtmlDocument._key;
+        HtmlDocument._key++;
+        sendMessage({
+            method: "html",
+            function: "parse",
+            key: this.key,
+            data: html
+        })
+    }
+
+    /**
+     * Query a single element from the HTML document.
+     * @param {string} query - The query string.
+     * @returns {HtmlElement | null} The first matching element.
+     */
+    querySelector(query) {
+        let k = sendMessage({
+            method: "html",
+            function: "querySelector",
+            key: this.key,
+            query: query
+        })
+        if(k == null) return null;
+        return new HtmlElement(k, this.key);
+    }
+
+    /**
+     * Query all matching elements from the HTML document.
+     * @param {string} query - The query string.
+     * @returns {HtmlElement[]} An array of matching elements.
+     */
+    querySelectorAll(query) {
+        let ks = sendMessage({
+            method: "html",
+            function: "querySelectorAll",
+            key: this.key,
+            query: query
+        })
+        return ks.map(k => new HtmlElement(k, this.key));
+    }
+
+    /**
+     * Dispose the HTML document.
+     * This should be called when the document is no longer needed.
+     */
+    dispose() {
+        sendMessage({
+            method: "html",
+            function: "dispose",
+            key: this.key
+        })
+    }
+
+    /**
+     * Get the element by its id.
      * @param id {string}
-     * @returns {Promise<ComicDetails>}
+     * @returns {HtmlElement|null}
      */
-    loadInfo: async (id) => {},
+    getElementById(id) {
+        let k = sendMessage({
+            method: "html",
+            function: "getElementById",
+            key: this.key,
+            id: id
+        })
+        if(k == null) return null;
+        return new HtmlElement(k, this.key);
+    }
+}
+
+/**
+ * HtmlDom class for interacting with HTML elements.
+ */
+class HtmlElement {
+    key = 0;
+
+    doc = 0;
+
     /**
-     * [Optional] load thumbnails of a comic
+     * Constructor for HtmlDom.
+     * @param {number} k - The key of the element.
+     * @param {number} doc - The key of the document.
+     */
+    constructor(k, doc) {
+        this.key = k;
+        this.doc = doc;
+    }
+
+    /**
+     * Get the text content of the element.
+     * @returns {string} The text content.
+     */
+    get text() {
+        return sendMessage({
+            method: "html",
+            function: "getText",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Get the attributes of the element.
+     * @returns {Object} The attributes.
+     */
+    get attributes() {
+        return sendMessage({
+            method: "html",
+            function: "getAttributes",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Query a single element from the current element.
+     * @param {string} query - The query string.
+     * @returns {HtmlElement} The first matching element.
+     */
+    querySelector(query) {
+        let k = sendMessage({
+            method: "html",
+            function: "dom_querySelector",
+            key: this.key,
+            query: query,
+            doc: this.doc,
+        })
+        if(k == null) return null;
+        return new HtmlElement(k, this.doc);
+    }
+
+    /**
+     * Query all matching elements from the current element.
+     * @param {string} query - The query string.
+     * @returns {HtmlElement[]} An array of matching elements.
+     */
+    querySelectorAll(query) {
+        let ks = sendMessage({
+            method: "html",
+            function: "dom_querySelectorAll",
+            key: this.key,
+            query: query,
+            doc: this.doc,
+        })
+        return ks.map(k => new HtmlElement(k, this.doc));
+    }
+
+    /**
+     * Get the children of the current element.
+     * @returns {HtmlElement[]} An array of child elements.
+     */
+    get children() {
+        let ks = sendMessage({
+            method: "html",
+            function: "getChildren",
+            key: this.key,
+            doc: this.doc,
+        })
+        return ks.map(k => new HtmlElement(k, this.doc));
+    }
+
+    /**
+     * Get the nodes of the current element.
+     * @returns {HtmlNode[]} An array of nodes.
+     */
+    get nodes() {
+        let ks = sendMessage({
+            method: "html",
+            function: "getNodes",
+            key: this.key,
+            doc: this.doc,
+        })
+        return ks.map(k => new HtmlNode(k, this.doc));
+    }
+
+    /**
+     * Get inner HTML of the element.
+     * @returns {string} The inner HTML.
+     */
+    get innerHTML() {
+        return sendMessage({
+            method: "html",
+            function: "getInnerHTML",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Get parent element of the element. If the element has no parent, return null.
+     * @returns {HtmlElement|null}
+     */
+    get parent() {
+        let k = sendMessage({
+            method: "html",
+            function: "getParent",
+            key: this.key,
+            doc: this.doc,
+        })
+        if(k == null) return null;
+        return new HtmlElement(k, this.doc);
+    }
+
+    /**
+     * Get class names of the element.
+     * @returns {string[]} An array of class names.
+     */
+    get classNames() {
+        return sendMessage({
+            method: "html",
+            function: "getClassNames",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Get id of the element.
+     * @returns {string | null} The id of the element.
+     */
+    get id() {
+        return sendMessage({
+            method: "html",
+            function: "getId",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Get local name of the element.
+     * @returns {string} The tag name of the element.
+     */
+    get localName() {
+        return sendMessage({
+            method: "html",
+            function: "getLocalName",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Get the previous sibling element of the element. If the element has no previous sibling, return null.
+     * @returns {HtmlElement|null}
+     */
+    get previousElementSibling() {
+        let k = sendMessage({
+            method: "html",
+            function: "getPreviousSibling",
+            key: this.key,
+            doc: this.doc,
+        })
+        if(k == null) return null;
+        return new HtmlElement(k, this.doc);
+    }
+
+    /**
+     * Get the next sibling element of the element. If the element has no next sibling, return null.
+     * @returns {HtmlElement|null}
+     */
+    get nextElementSibling() {
+        let k = sendMessage({
+            method: "html",
+            function: "getNextSibling",
+            key: this.key,
+            doc: this.doc,
+        })
+        if (k == null) return null;
+        return new HtmlElement(k, this.doc);
+    }
+}
+
+class HtmlNode {
+    key = 0;
+
+    doc = 0;
+
+    constructor(k, doc) {
+        this.key = k;
+        this.doc = doc;
+    }
+
+    /**
+     * Get the text content of the node.
+     * @returns {string} The text content.
+     */
+    get text() {
+        return sendMessage({
+            method: "html",
+            function: "node_text",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Get the type of the node.
+     * @returns {string} The type of the node. ("text", "element", "comment", "document", "unknown")
+     */
+    get type() {
+        return sendMessage({
+            method: "html",
+            function: "node_type",
+            key: this.key,
+            doc: this.doc,
+        })
+    }
+
+    /**
+     * Convert the node to an HtmlElement. If the node is not an element, return null.
+     * @returns {HtmlElement|null}
+     */
+    toElement() {
+        let k = sendMessage({
+            method: "html",
+            function: "node_toElement",
+            key: this.key,
+            doc: this.doc,
+        })
+        if(k == null) return null;
+        return new HtmlElement(k, this.doc);
+    }
+}
+
+function log(level, title, content) {
+    sendMessage({
+        method: 'log',
+        level: level,
+        title: title,
+        content: content,
+    })
+}
+
+let console = {
+    log: (content) => {
+        log('info', 'JS Console', content)
+    },
+    warn: (content) => {
+        log('warning', 'JS Console', content)
+    },
+    error: (content) => {
+        log('error', 'JS Console', content)
+    },
+};
+
+/**
+ * Create a comic object
+ * @param id {string}
+ * @param title {string}
+ * @param subtitle {string}
+ * @param subTitle {string} - equal to subtitle
+ * @param cover {string}
+ * @param tags {string[]}
+ * @param description {string}
+ * @param maxPage {number?}
+ * @param language {string?}
+ * @param favoriteId {string?} - Only set this field if the comic is from favorites page
+ * @param stars {number?} - 0-5, double
+ * @constructor
+ */
+function Comic({id, title, subtitle, subTitle, cover, tags, description, maxPage, language, favoriteId, stars}) {
+    this.id = id;
+    this.title = title;
+    this.subtitle = subtitle;
+    this.subTitle = subTitle;
+    this.cover = cover;
+    this.tags = tags;
+    this.description = description;
+    this.maxPage = maxPage;
+    this.language = language;
+    this.favoriteId = favoriteId;
+    this.stars = stars;
+}
+
+/**
+ * Create a comic details object
+ * @param title {string}
+ * @param subtitle {string}
+ * @param subTitle {string} - equal to subtitle
+ * @param cover {string}
+ * @param description {string?}
+ * @param tags {Map<string, string[]> | {} | null | undefined}
+ * @param chapters {Map<string, string> | {} | null | undefined} - key: chapter id, value: chapter title
+ * @param isFavorite {boolean | null | undefined} - favorite status.
+ * @param subId {string?} - a param which is passed to comments api
+ * @param thumbnails {string[]?} - for multiple page thumbnails, set this to null, and use `loadThumbnails` api to load thumbnails
+ * @param recommend {Comic[]?} - related comics
+ * @param commentCount {number?}
+ * @param likesCount {number?}
+ * @param isLiked {boolean?}
+ * @param uploader {string?}
+ * @param updateTime {string?}
+ * @param uploadTime {string?}
+ * @param url {string?}
+ * @param stars {number?} - 0-5, double
+ * @param maxPage {number?}
+ * @param comments {Comment[]?}- `since 1.0.7` App will display comments in the details page.
+ * @constructor
+ */
+function ComicDetails({title, subtitle, subTitle, cover, description, tags, chapters, isFavorite, subId, thumbnails, recommend, commentCount, likesCount, isLiked, uploader, updateTime, uploadTime, url, stars, maxPage, comments}) {
+    this.title = title;
+    this.subtitle = subtitle ?? subTitle;
+    this.cover = cover;
+    this.description = description;
+    this.tags = tags;
+    this.chapters = chapters;
+    this.isFavorite = isFavorite;
+    this.subId = subId;
+    this.thumbnails = thumbnails;
+    this.recommend = recommend;
+    this.commentCount = commentCount;
+    this.likesCount = likesCount;
+    this.isLiked = isLiked;
+    this.uploader = uploader;
+    this.updateTime = updateTime;
+    this.uploadTime = uploadTime;
+    this.url = url;
+    this.stars = stars;
+    this.maxPage = maxPage;
+    this.comments = comments;
+}
+
+/**
+ * Create a comment object
+ * @param userName {string}
+ * @param avatar {string?}
+ * @param content {string}
+ * @param time {string?}
+ * @param replyCount {number?}
+ * @param id {string?}
+ * @param isLiked {boolean?}
+ * @param score {number?}
+ * @param voteStatus {number?} - 1: upvote, -1: downvote, 0: none
+ * @constructor
+ */
+function Comment({userName, avatar, content, time, replyCount, id, isLiked, score, voteStatus}) {
+    this.userName = userName;
+    this.avatar = avatar;
+    this.content = content;
+    this.time = time;
+    this.replyCount = replyCount;
+    this.id = id;
+    this.isLiked = isLiked;
+    this.score = score;
+    this.voteStatus = voteStatus;
+}
+
+/**
+ * Create image loading config
+ * @param url {string?}
+ * @param method {string?} - http method, uppercase
+ * @param data {any} - request data, may be null
+ * @param headers {Object?} - request headers
+ * @param onResponse {((ArrayBuffer) => ArrayBuffer)?} - modify response data
+ * @param modifyImage {string?}
+ *  A js script string.
+ *  The script will be executed in a new Isolate.
+ *  A function named `modifyImage` should be defined in the script, which receives an [Image] as the only argument, and returns an [Image]..
+ * @param onLoadFailed {(() => ImageLoadingConfig)?} - called when the image loading failed
+ * @constructor
+ * @since 1.0.5
+ *
+ * To keep the compatibility with the old version, do not use the constructor. Consider creating a new object with the properties directly.
+ */
+function ImageLoadingConfig({url, method, data, headers, onResponse, modifyImage, onLoadFailed}) {
+    this.url = url;
+    this.method = method;
+    this.data = data;
+    this.headers = headers;
+    this.onResponse = onResponse;
+    this.modifyImage = modifyImage;
+    this.onLoadFailed = onLoadFailed;
+}
+
+class ComicSource {
+    name = ""
+
+    key = ""
+
+    version = ""
+
+    minAppVersion = ""
+
+    url = ""
+
+    /**
+     * load data with its key
+     * @param {string} dataKey
+     * @returns {any}
+     */
+    loadData(dataKey) {
+        return sendMessage({
+            method: 'load_data',
+            key: this.key,
+            data_key: dataKey
+        })
+    }
+
+    /**
+     * load a setting with its key
+     * @param key {string}
+     * @returns {any}
+     */
+    loadSetting(key) {
+        return sendMessage({
+            method: 'load_setting',
+            key: this.key,
+            setting_key: key
+        })
+    }
+
+    /**
+     * save data
+     * @param {string} dataKey
+     * @param data
+     */
+    saveData(dataKey, data) {
+        return sendMessage({
+            method: 'save_data',
+            key: this.key,
+            data_key: dataKey,
+            data: data
+        })
+    }
+
+    /**
+     * delete data
+     * @param {string} dataKey
+     */
+    deleteData(dataKey) {
+        return sendMessage({
+            method: 'delete_data',
+            key: this.key,
+            data_key: dataKey,
+        })
+    }
+
+    /**
      *
-     * To render a part of an image as thumbnail, return `${url}@x=${start}-${end}&y=${start}-${end}`
-     * - If width is not provided, use full width
-     * - If height is not provided, use full height
-     * @param id {string}
-     * @param next {string?} - next page token, null for first page
-     * @returns {Promise<{thumbnails: string[], next: string?}>} - `next` is next page token, null for no more
+     * @returns {boolean}
      */
-    loadThumbnails: async (id, next) => {
-      /*
-            ```
-            let data = JSON.parse((await Network.get('...')).body)
+    get isLogged() {
+        return sendMessage({
+            method: 'isLogged',
+            key: this.key,
+        });
+    }
 
-            return {
-                thumbnails: data.list,
-                next: next,
-            }
-            ```
-            */
-    },
+    translation = {}
 
     /**
-     * rate a comic
-     * @param id
-     * @param rating {number} - [0-10] app use 5 stars, 1 rating = 0.5 stars,
-     * @returns {Promise<any>} - return any value to indicate success
+     * Translate given string with the current locale using the translation object.
+     * @param key {string}
+     * @returns {string}
+     * @since 1.2.5
      */
-    starRating: async (id, rating) => {},
+    translate(key) {
+        let locale = APP.locale;
+        return this.translation[locale]?.[key] ?? key;
+    }
+
+    init() { }
+
+    static sources = {}
+}
+
+/// A reference to dart object.
+/// The api can only be used in the comic.onImageLoad.modifyImage function
+class Image {
+    key = 0;
+
+    constructor(key) {
+        this.key = key;
+    }
 
     /**
-     * load images of a chapter
-     * @param comicId {string}
-     * @param epId {string?}
-     * @returns {Promise<{images: string[]}>}
+     * Copy the specified range of the image
+     * @param x
+     * @param y
+     * @param width
+     * @param height
+     * @returns {Image|null}
      */
-    loadEp: async (comicId, epId) => {
-      /*
-            ```
-            return {
-                // string[]
-                images: images
-            }
-            ```
-            */
-    },
-    /**
-     * [Optional] provide configs for an image loading
-     * @param url
-     * @param comicId
-     * @param epId
-     * @returns {ImageLoadingConfig | Promise<ImageLoadingConfig>}
-     */
-    onImageLoad: (url, comicId, epId) => {
-      return {};
-    },
-    /**
-     * [Optional] provide configs for a thumbnail loading
-     * @param url {string}
-     * @returns {ImageLoadingConfig | Promise<ImageLoadingConfig>}
-     *
-     * `ImageLoadingConfig.modifyImage` and `ImageLoadingConfig.onLoadFailed` will be ignored.
-     * They are not supported for thumbnails.
-     */
-    onThumbnailLoad: (url) => {
-      return {};
-    },
-    /**
-     * [Optional] like or unlike a comic
-     * @param id {string}
-     * @param isLike {boolean} - true for like, false for unlike
-     * @returns {Promise<void>}
-     */
-    likeComic: async (id, isLike) => {},
-    /**
-     * [Optional] load comments
-     *
-     * Since app version 1.0.6, rich text is supported in comments.
-     * Following html tags are supported: ['a', 'b', 'i', 'u', 's', 'br', 'span', 'img'].
-     * span tag supports style attribute, but only support font-weight, font-style, text-decoration.
-     * All images will be placed at the end of the comment.
-     * Auto link detection is enabled, but only http/https links are supported.
-     * @param comicId {string}
-     * @param subId {string?} - ComicDetails.subId
-     * @param page {number}
-     * @param replyTo {string?} - commentId to reply, not null when reply to a comment
-     * @returns {Promise<{comments: Comment[], maxPage: number?}>}
-     */
-    loadComments: async (comicId, subId, page, replyTo) => {
-      /*
-            ```
-            // ...
+    copyRange(x, y, width, height) {
+        let key = sendMessage({
+            method: "image",
+            function: "copyRange",
+            key: this.key,
+            x: x,
+            y: y,
+            width: width,
+            height: height
+        })
+        if(key == null) return null;
+        return new Image(key);
+    }
 
-            return {
-                comments: data.results.list.map(e => {
-                    return new Comment({
-                        // string
-                        userName: e.user_name,
-                        // string
-                        avatar: e.user_avatar,
-                        // string
-                        content: e.comment,
-                        // string?
-                        time: e.create_at,
-                        // number?
-                        replyCount: e.count,
-                        // string
-                        id: e.id,
-                    })
-                }),
-                // number
-                maxPage: data.results.maxPage,
-            }
-            ```
-            */
-    },
     /**
-     * [Optional] send a comment, return any value to indicate success
-     * @param comicId {string}
-     * @param subId {string?} - ComicDetails.subId
+     * Copy the image and rotate 90 degrees
+     * @returns {Image|null}
+     */
+    copyAndRotate90() {
+        let key = sendMessage({
+            method: "image",
+            function: "copyAndRotate90",
+            key: this.key
+        })
+        if(key == null) return null;
+        return new Image(key);
+    }
+
+    /**
+     * fill [image] to this image at (x, y)
+     * @param x
+     * @param y
+     * @param image
+     */
+    fillImageAt(x, y, image) {
+        sendMessage({
+            method: "image",
+            function: "fillImageAt",
+            key: this.key,
+            x: x,
+            y: y,
+            image: image.key
+        })
+    }
+
+    /**
+     * fill [image] with range(srcX, srcY, width, height) to this image at (x, y)
+     * @param x
+     * @param y
+     * @param image
+     * @param srcX
+     * @param srcY
+     * @param width
+     * @param height
+     */
+    fillImageRangeAt(x, y, image, srcX, srcY, width, height) {
+        sendMessage({
+            method: "image",
+            function: "fillImageRangeAt",
+            key: this.key,
+            x: x,
+            y: y,
+            image: image.key,
+            srcX: srcX,
+            srcY: srcY,
+            width: width,
+            height: height
+        })
+    }
+
+    get width() {
+        return sendMessage({
+            method: "image",
+            function: "getWidth",
+            key: this.key
+        })
+    }
+
+    get height() {
+        return sendMessage({
+            method: "image",
+            function: "getHeight",
+            key: this.key
+        })
+    }
+
+    static empty(width, height) {
+        let key = sendMessage({
+            method: "image",
+            function: "emptyImage",
+            width: width,
+            height: height
+        })
+        return new Image(key);
+    }
+}
+
+/**
+ * UI related apis
+ * @since 1.2.0
+ */
+let UI = {
+    /**
+     * Show a message
+     * @param message {string}
+     */
+    showMessage: (message) => {
+        sendMessage({
+            method: 'UI',
+            function: 'showMessage',
+            message: message,
+        })
+    },
+
+    /**
+     * Show a dialog. Any action will close the dialog.
+     * @param title {string}
      * @param content {string}
-     * @param replyTo {string?} - commentId to reply, not null when reply to a comment
-     * @returns {Promise<any>}
+     * @param actions {{text:string, callback: () => void | Promise<void>, style: "text"|"filled"|"danger"}[]} - If callback returns a promise, the button will show a loading indicator until the promise is resolved.
+     * @returns {Promise<void>} - Resolved when the dialog is closed.
+     * @since 1.2.1
      */
-    sendComment: async (comicId, subId, content, replyTo) => {},
-    /**
-     * [Optional] like or unlike a comment
-     * @param comicId {string}
-     * @param subId {string?} - ComicDetails.subId
-     * @param commentId {string}
-     * @param isLike {boolean} - true for like, false for unlike
-     * @returns {Promise<void>}
-     */
-    likeComment: async (comicId, subId, commentId, isLike) => {},
-    /**
-     * [Optional] vote a comment
-     * @param id {string} - comicId
-     * @param subId {string?} - ComicDetails.subId
-     * @param commentId {string} - commentId
-     * @param isUp {boolean} - true for up, false for down
-     * @param isCancel {boolean} - true for cancel, false for vote
-     * @returns {Promise<number>} - new score
-     */
-    voteComment: async (id, subId, commentId, isUp, isCancel) => {},
-    // {string?} - regex string, used to identify comic id from user input
-    idMatch: null,
-    /**
-     * [Optional] Handle tag click event
-     * @param namespace {string}
-     * @param tag {string}
-     * @returns {PageJumpTarget}
-     */
-    onClickTag: (namespace, tag) => {
-      /*
-            ```
-            return new PageJumpTarget({
-                page: 'search',
-                keyword: tag,
-            })
-            ```
-             */
+    showDialog: (title, content, actions) => {
+        sendMessage({
+            method: 'UI',
+            function: 'showDialog',
+            title: title,
+            content: content,
+            actions: actions,
+        })
     },
-    /**
-     * [Optional] Handle links
-     */
-    link: {
-      /**
-       * set accepted domains
-       */
-      domains: ["example.com"],
-      /**
-       * parse url to comic id
-       * @param url {string}
-       * @returns {string | null}
-       */
-      linkToId: (url) => {},
-    },
-    // enable tags translate
-    enableTagsTranslate: false,
-  };
 
-  /*
-    [Optional] settings related
-    Use this.loadSetting to load setting
-    ```
-    let setting1Value = this.loadSetting('setting1')
-    console.log(setting1Value)
-    ```
+    /**
+     * Open [url] in external browser
+     * @param url {string}
      */
-  settings = {
-    setting1: {
-      // title
-      title: "Setting1",
-      // type: input, select, switch
-      type: "select",
-      // options
-      options: [
-        {
-          // value
-          value: "o1",
-          // [Optional] text, if not set, use value as text
-          text: "Option 1",
-        },
-      ],
-      default: "o1",
+    launchUrl: (url) => {
+        sendMessage({
+            method: 'UI',
+            function: 'launchUrl',
+            url: url,
+        })
     },
-    setting2: {
-      title: "Setting2",
-      type: "switch",
-      default: true,
-    },
-    setting3: {
-      title: "Setting3",
-      type: "input",
-      validator: null, // string | null, regex string
-      default: "",
-    },
-    setting4: {
-      title: "Setting4",
-      type: "callback",
-      buttonText: "Click me",
-      /**
-       * callback function
-       *
-       * If the callback function returns a Promise, the button will show a loading indicator until the promise is resolved.
-       * @returns {void | Promise<any>}
-       */
-      callback: () => {
-        // do something
-      },
-    },
-  };
 
-  // [Optional] translations for the strings in this config
-  translation = {
-    zh_CN: {
-      Setting1: "设置1",
-      Setting2: "设置2",
-      Setting3: "设置3",
+    /**
+     * Show a loading dialog.
+     * @param onCancel {() => void | null | undefined} - Called when the loading dialog is canceled. If [onCancel] is null, the dialog cannot be canceled by the user.
+     * @returns {number} - A number that can be used to cancel the loading dialog.
+     * @since 1.2.1
+     */
+    showLoading: (onCancel) => {
+        return sendMessage({
+            method: 'UI',
+            function: 'showLoading',
+            onCancel: onCancel
+        })
     },
-    zh_TW: {},
-    en: {},
-  };
+
+    /**
+     * Cancel a loading dialog.
+     * @param id {number} - returned by [showLoading]
+     * @since 1.2.1
+     */
+    cancelLoading: (id) => {
+        sendMessage({
+            method: 'UI',
+            function: 'cancelLoading',
+            id: id
+        })
+    },
+
+    /**
+     * Show an input dialog
+     * @param title {string}
+     * @param validator {(string) => string | null | undefined} - A function that validates the input. If the function returns a string, the dialog will show the error message.
+     * @param image {string?} - Available since 1.4.6. An optional image to show in the dialog. You can use this to show a captcha.
+     * @returns {Promise<string | null>} - The input value. If the dialog is canceled, return null.
+     */
+    showInputDialog: (title, validator, image) => {
+        return sendMessage({
+            method: 'UI',
+            function: 'showInputDialog',
+            title: title,
+            image: image,
+            validator: validator
+        })
+    },
+
+    /**
+     * Show a select dialog
+     * @param title {string}
+     * @param options {string[]}
+     * @param initialIndex {number?}
+     * @returns {Promise<number | null>} - The selected index. If the dialog is canceled, return null.
+     */
+    showSelectDialog: (title, options, initialIndex) => {
+        return sendMessage({
+            method: 'UI',
+            function: 'showSelectDialog',
+            title: title,
+            options: options,
+            initialIndex: initialIndex
+        })
+    }
+}
+
+/**
+ * App related apis
+ * @since 1.2.1
+ */
+let APP = {
+    /**
+     * Get the app version
+     * @returns {string} - The app version
+     */
+    get version() {
+        return appVersion // defined in the engine
+    },
+
+    /**
+     * Get current app locale
+     * @returns {string} - The app locale, in the format of [languageCode]_[countryCode]
+     */
+    get locale() {
+        return sendMessage({
+            method: 'getLocale'
+        })
+    },
+
+    /**
+     * Get current running platform
+     * @returns {string} - The platform name, "android", "ios", "windows", "macos", "linux"
+     */
+    get platform() {
+        return sendMessage({
+            method: 'getPlatform'
+        })
+    }
+}
+
+/**
+ * Set clipboard text
+ * @param text {string}
+ * @returns {Promise<void>}
+ *
+ * @since 1.3.4
+ */
+function setClipboard(text) {
+    return sendMessage({
+        method: 'setClipboard',
+        text: text
+    })
+}
+
+/**
+ * Get clipboard text
+ * @returns {Promise<string>}
+ *
+ * @since 1.3.4
+ */
+function getClipboard() {
+    return sendMessage({
+        method: 'getClipboard'
+    })
+}
+
+/**
+ * Compute a function with arguments. The function will be executed in the engine pool which is not in the main thread.
+ * @param func {string} - A js code string which can be evaluated to a function. The function will receive the args as its only argument.
+ * @param args {any[]} - The arguments to pass to the function.
+ * @returns {Promise<any>} - The result of the function.
+ * @since 1.5.0
+ */
+function compute(func, ...args) {
+    return sendMessage({
+        method: 'compute',
+        function: func,
+        args: args
+    })
 }
