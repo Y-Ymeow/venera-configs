@@ -7,7 +7,7 @@ class MangaDistrictComicSource extends ComicSource {
   // unique id of the source
   key = "manga_district";
 
-  version = "1.0.2";
+  version = "1.0.3";
 
   minAppVersion = "1.4.0";
 
@@ -43,17 +43,40 @@ class MangaDistrictComicSource extends ComicSource {
 
         // Determine max page
         let maxPage = 1;
-        const paginationElements = document.querySelectorAll(
-          "div[role=navigation] a.page-numbers",
+        // Check for WordPress-style pagination (wp-pagenavi)
+        let paginationElements = document.querySelectorAll(
+          "div.wp-pagenavi a.page-numbers, div.wp-pagenavi a.larger, div.wp-pagenavi a.last",
         );
+        if (paginationElements.length === 0) {
+          // Fallback to the original selector
+          paginationElements = document.querySelectorAll(
+            "div[role=navigation] a.page-numbers",
+          );
+        }
         if (paginationElements.length > 0) {
-          const lastPageElement =
-            paginationElements[paginationElements.length - 1];
+          // Look for the last page element which might have "last" class
+          let lastPageElement = null;
+          // First look for the "last" page link
+          for (let i = paginationElements.length - 1; i >= 0; i--) {
+            if (
+              paginationElements[i].attributes["class"] &&
+              paginationElements[i].attributes["class"].includes("last")
+            ) {
+              lastPageElement = paginationElements[i];
+              break;
+            }
+          }
+          // If no "last" element found, use the last element in the list
+          if (!lastPageElement) {
+            lastPageElement = paginationElements[paginationElements.length - 1];
+          }
           const href = lastPageElement.attributes["href"];
           if (href) {
-            const match = href.match(/page\/(\d+)|\?page=(\d+)/);
+            const match = href.match(/page\/(\d+)|\?page=(\d+)|\/(\d+)\/\?/);
             if (match) {
-              maxPage = Math.max(parseInt(match[1] || match[2] || "1"), 1);
+              // Check all capture groups for the page number
+              const pageNumber = match[1] || match[2] || match[3] || "1";
+              maxPage = Math.max(parseInt(pageNumber), 1);
             }
           }
         }
@@ -895,17 +918,40 @@ class MangaDistrictComicSource extends ComicSource {
 
       // Determine max page
       let maxPage = 1;
-      const paginationElements = document.querySelectorAll(
-        "div[role=navigation] a.page-numbers",
+      // Check for WordPress-style pagination (wp-pagenavi)
+      let paginationElements = document.querySelectorAll(
+        "div.wp-pagenavi a.page-numbers, div.wp-pagenavi a.larger, div.wp-pagenavi a.last",
       );
+      if (paginationElements.length === 0) {
+        // Fallback to the original selector
+        paginationElements = document.querySelectorAll(
+          "div[role=navigation] a.page-numbers",
+        );
+      }
       if (paginationElements.length > 0) {
-        const lastPageElement =
-          paginationElements[paginationElements.length - 1];
+        // Look for the last page element which might have "last" class
+        let lastPageElement = null;
+        // First look for the "last" page link
+        for (let i = paginationElements.length - 1; i >= 0; i--) {
+          if (
+            paginationElements[i].attributes["class"] &&
+            paginationElements[i].attributes["class"].includes("last")
+          ) {
+            lastPageElement = paginationElements[i];
+            break;
+          }
+        }
+        // If no "last" element found, use the last element in the list
+        if (!lastPageElement) {
+          lastPageElement = paginationElements[paginationElements.length - 1];
+        }
         const href = lastPageElement.attributes["href"];
         if (href) {
-          const match = href.match(/page\/(\d+)|\?page=(\d+)/);
+          const match = href.match(/page\/(\d+)|\?page=(\d+)|\/(\d+)\/\?/);
           if (match) {
-            maxPage = Math.max(parseInt(match[1] || match[2] || "1"), 1);
+            // Check all capture groups for the page number
+            const pageNumber = match[1] || match[2] || match[3] || "1";
+            maxPage = Math.max(parseInt(pageNumber), 1);
           }
         }
       }
@@ -1009,17 +1055,40 @@ class MangaDistrictComicSource extends ComicSource {
 
       // Determine max page
       let maxPage = 1;
-      const paginationElements = document.querySelectorAll(
-        "div[role=navigation] a.page-numbers",
+      // Check for WordPress-style pagination (wp-pagenavi)
+      let paginationElements = document.querySelectorAll(
+        "div.wp-pagenavi a.page-numbers, div.wp-pagenavi a.larger, div.wp-pagenavi a.last",
       );
+      if (paginationElements.length === 0) {
+        // Fallback to the original selector
+        paginationElements = document.querySelectorAll(
+          "div[role=navigation] a.page-numbers",
+        );
+      }
       if (paginationElements.length > 0) {
-        const lastPageElement =
-          paginationElements[paginationElements.length - 1];
+        // Look for the last page element which might have "last" class
+        let lastPageElement = null;
+        // First look for the "last" page link
+        for (let i = paginationElements.length - 1; i >= 0; i--) {
+          if (
+            paginationElements[i].attributes["class"] &&
+            paginationElements[i].attributes["class"].includes("last")
+          ) {
+            lastPageElement = paginationElements[i];
+            break;
+          }
+        }
+        // If no "last" element found, use the last element in the list
+        if (!lastPageElement) {
+          lastPageElement = paginationElements[paginationElements.length - 1];
+        }
         const href = lastPageElement.attributes["href"];
         if (href) {
-          const match = href.match(/page\/(\d+)|\?page=(\d+)/);
+          const match = href.match(/page\/(\d+)|\?page=(\d+)|\/(\d+)\/\?/);
           if (match) {
-            maxPage = Math.max(parseInt(match[1] || match[2] || "1"), 1);
+            // Check all capture groups for the page number
+            const pageNumber = match[1] || match[2] || match[3] || "1";
+            maxPage = Math.max(parseInt(pageNumber), 1);
           }
         }
       }
