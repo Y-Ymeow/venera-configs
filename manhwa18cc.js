@@ -42,7 +42,7 @@ class Manhwa18cc extends ComicSource {
 
     try {
       console.log(
-        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
       );
       const newData = await fetcher();
 
@@ -76,7 +76,9 @@ class Manhwa18cc extends ComicSource {
     } catch (e) {
       console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
       if (cachedData) {
-        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        console.log(
+          `[Cache] Using STALE data for ${key} due to network error.`,
+        );
         return cachedData;
       }
       throw e;
@@ -88,12 +90,12 @@ class Manhwa18cc extends ComicSource {
     const deletableKeys = [];
     if (timestamps.explore) {
       Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`)
+        deletableKeys.push(`explore.${lang}`),
       );
     }
     if (timestamps.comic) {
       Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`)
+        deletableKeys.push(`comic.${id}`),
       );
     }
     return deletableKeys;
@@ -128,7 +130,7 @@ class Manhwa18cc extends ComicSource {
 
       const selectedKeyIndex = await UI.showSelectDialog(
         "Select cache key to clear",
-        allKeys
+        allKeys,
       );
 
       if (selectedKeyIndex !== null) {
@@ -262,7 +264,9 @@ class Manhwa18cc extends ComicSource {
             let cover = "";
             if (coverImg) {
               cover =
-                coverImg.attributes.src || coverImg.attributes["data-src"] || "";
+                coverImg.attributes.src ||
+                coverImg.attributes["data-src"] ||
+                "";
               // Ensure the cover URL is absolute
               if (cover.startsWith("//")) {
                 cover = "https" + cover;
@@ -412,7 +416,8 @@ class Manhwa18cc extends ComicSource {
           if (cover.startsWith("//")) {
             cover = "https:" + cover;
           } else if (cover.startsWith("/")) {
-            const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+            const baseUrl =
+              this.loadSetting("baseUrl") || "https://manhwa18.cc";
             cover = baseUrl + cover;
           }
         }

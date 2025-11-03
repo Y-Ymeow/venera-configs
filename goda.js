@@ -82,7 +82,7 @@ class Goda extends ComicSource {
 
     try {
       console.log(
-        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`
+        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
       );
       const newData = await fetcher();
 
@@ -116,7 +116,9 @@ class Goda extends ComicSource {
     } catch (e) {
       console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
       if (cachedData) {
-        console.log(`[Cache] Using STALE data for ${key} due to network error.`);
+        console.log(
+          `[Cache] Using STALE data for ${key} due to network error.`,
+        );
         return cachedData;
       }
       throw e;
@@ -128,12 +130,12 @@ class Goda extends ComicSource {
     const deletableKeys = [];
     if (timestamps.explore) {
       Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`)
+        deletableKeys.push(`explore.${lang}`),
       );
     }
     if (timestamps.comic) {
       Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`)
+        deletableKeys.push(`comic.${id}`),
       );
     }
     return deletableKeys;
@@ -168,7 +170,7 @@ class Goda extends ComicSource {
 
       const selectedKeyIndex = await UI.showSelectDialog(
         "Select cache key to clear",
-        allKeys
+        allKeys,
       );
 
       if (selectedKeyIndex !== null) {
@@ -763,7 +765,9 @@ class Goda extends ComicSource {
         const description = descElement ? descElement.text.trim() : "";
 
         // Extract manga ID from the page for API call
-        const mangaIdElement = doc.querySelector("#mangachapters, #chaplistlast");
+        const mangaIdElement = doc.querySelector(
+          "#mangachapters, #chaplistlast",
+        );
         let mangaId = null;
         if (mangaIdElement) {
           mangaId = mangaIdElement.attributes["data-mid"];
@@ -872,7 +876,11 @@ class Goda extends ComicSource {
 
         const jsonData = await apiRes.json();
 
-        if (!jsonData.data || !jsonData.data.info || !jsonData.data.info.images) {
+        if (
+          !jsonData.data ||
+          !jsonData.data.info ||
+          !jsonData.data.info.images
+        ) {
           throw new Error("Invalid API response format");
         }
 
