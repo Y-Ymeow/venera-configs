@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.1.0";
+  version = "1.1.1";
   minAppVersion = "1.4.0";
 
   url =
@@ -310,14 +310,15 @@ class Manwa extends ComicSource {
           this.loadData(this.#domain_key) || this.#defaultDomains[0];
         const initialIndex = domains.findIndex((d) => d === currentDomain);
 
+        const newDomains = ["https://manwa.me", ...domains];
         const selectedIndex = await UI.showSelectDialog(
           "选择一个可用域名",
-          ["https://manwa.me", ...domains],
+          newDomains,
           initialIndex,
         );
 
         if (selectedIndex != null) {
-          const selectedDomain = domains[selectedIndex];
+          const selectedDomain = newDomains[selectedIndex];
           this.saveData(this.#domain_key, selectedDomain);
           UI.showMessage(`已切换域名至: ${selectedDomain}`);
         }

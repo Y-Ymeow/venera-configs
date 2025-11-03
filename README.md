@@ -13,6 +13,8 @@ Configuration file repository for venera
 - Webtoon
 - Manga District
 - 嗨피漫画
+- 巴卡漫画
+- Manga Park
 
 ## 通过 JSON 自动添加漫画源
 
