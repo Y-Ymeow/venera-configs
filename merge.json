@@ -9,13 +9,19 @@
     "name": "漫画柜",
     "fileName": "manhuagui.js",
     "key": "ManHuaGui",
-    "version": "1.1.1"
+    "version": "1.2.0"
   },
   {
     "name": "包子漫画",
     "fileName": "baozi.js",
     "key": "baozi",
     "version": "1.1.1"
+  },
+  {
+    "name": "カドコミ",
+    "fileName": "comic_walker.js",
+    "key": "comic_walker",
+    "version": "1.0.0"
   },
   {
     "name": "comick",
@@ -27,7 +33,7 @@
     "name": "拷贝漫画",
     "fileName": "copy_manga.js",
     "key": "copy_manga",
-    "version": "1.3.8"
+    "version": "1.4.0"
   },
   {
     "name": "ehentai",
@@ -113,7 +119,7 @@
     "name": "漫蛙吧",
     "fileName": "manwaba.js",
     "key": "manwaba",
-    "version": "1.0.1"
+    "version": "1.0.2"
   },
   {
     "name": "nhentai",
