@@ -18,22 +18,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.PERSONAL_TOKEN != '' && secrets.PERSONAL_TOKEN || github.token }}
-      - uses: tgymnich/fork-sync@v2.0
-        with:
-          owner: venera-app
-          head: main
-          base: main
-          # Prefer a PERSONAL_TOKEN secret when set (useful when syncing forks across different accounts/orgs).
-          # If PERSONAL_TOKEN is not set, fallback to the automatically provided GITHUB token.
-          token: ${{ secrets.PERSONAL_TOKEN != '' && secrets.PERSONAL_TOKEN || github.token }}
-          # Optional inputs you can enable as needed:
-          merge_method: merge
-          pr_title: "Fork Sync: Update from parent repository"
-          # ignore_fail: false
-          # auto_approve: false
-          auto_merge: true
-          # retries: 4
-          # retry_after: 60
+      - name: Sync with upstream
+        run: |
+          set -e
+          API_URL="https://api.github.com/repos/venera-app/venera-configs/git/trees/main?recursive=1"
+          FILE_LIST=$(curl -s $API_URL)
+          echo "$FILE_LIST" | jq -r '.tree[].path | select(endswith(".js") or . == "index.json")' | while read -r filepath; do
+            DOWNLOAD_URL="https://raw.githubusercontent.com/venera-app/venera-configs/main/$filepath"
+            mkdir -p "$(dirname "$filepath")"
+            echo "Downloading $filepath..."
+            curl -s -f -L -o "$filepath" "$DOWNLOAD_URL"
+          done
       - name: Create merged JSON file
         id: merge_json
         run: |
@@ -46,6 +41,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add merge.json
-          git commit -m "chore: Create/update merged sources in merge.json"
+          git add .
+          git commit -m "chore: Sync upstream sources and update merge.json"
           git push
