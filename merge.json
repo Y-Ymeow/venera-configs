@@ -9,7 +9,7 @@
     "name": "漫画柜",
     "fileName": "manhuagui.js",
     "key": "ManHuaGui",
-    "version": "1.1.0"
+    "version": "1.1.1"
   },
   {
     "name": "包子漫画",
@@ -21,7 +21,7 @@
     "name": "comick",
     "fileName": "comick.js",
     "key": "comick",
-    "version": "1.1.1"
+    "version": "1.2.0"
   },
   {
     "name": "拷贝漫画",
@@ -67,6 +67,12 @@
     "description": "禁漫天堂漫畫源, 不能使用時請嘗試切換分流"
   },
   {
+    "name": "Komga",
+    "fileName": "komga.js",
+    "key": "komga",
+    "version": "1.0.0"
+  },
+  {
     "name": "Lanraragi",
     "fileName": "lanraragi.js",
     "key": "lanraragi",
@@ -107,7 +113,7 @@
     "name": "漫蛙吧",
     "fileName": "manwaba.js",
     "key": "manwaba",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   {
     "name": "nhentai",
@@ -131,13 +137,13 @@
     "name": "Webtoon",
     "fileName": "webtoon.js",
     "key": "webtoon",
-    "version": "1.0.7"
+    "version": "1.0.8"
   },
   {
     "name": "紳士漫畫",
     "fileName": "wnacg.js",
     "key": "wnacg",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "紳士漫畫漫畫源, 不能使用時請嘗試更換URL"
   },
   {
