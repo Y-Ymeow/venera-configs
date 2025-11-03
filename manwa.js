@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.0.9";
+  version = "1.1.0";
   minAppVersion = "1.4.0";
 
   url =
@@ -11,7 +11,8 @@ class Manwa extends ComicSource {
   static ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 
-  static domains = [
+  #domain_key = "manwa_domain";
+  #defaultDomains = [
     "https://manwa.me",
     "https://manwass.cc",
     "https://manwatg.cc",
@@ -21,15 +22,7 @@ class Manwa extends ComicSource {
 
   // 获取域名配置
   get domain() {
-    const settingValue = this.loadSetting("domain");
-    if (settingValue && !isNaN(settingValue)) {
-      const index = parseInt(settingValue) - 1;
-      if (index >= 0 && index < Manwa.domains.length) {
-        return Manwa.domains[index];
-      }
-    }
-    // Default to the first domain if setting is not valid
-    return Manwa.domains[0] || this.settings.domain.default;
+    return this.loadData(this.#domain_key) || this.#defaultDomains[0];
   }
 
   // 获取User-Agent
@@ -259,17 +252,76 @@ class Manwa extends ComicSource {
   }
 
   settings = {
-    domain: {
-      type: "select",
-      options: [
-        { value: "1", text: "Domain 1" },
-        { value: "2", text: "Domain 2" },
-        { value: "3", text: "Domain 3" },
-        { value: "4", text: "Domain 4" },
-        { value: "5", text: "Domain 5" },
-      ],
-      default: "1",
+    domainSelector: {
       title: "选择域名",
+      type: "callback",
+      buttonText: "点击更新并选择",
+      callback: async () => {
+        const loadingId = UI.showLoading();
+        let domains = [...this.#defaultDomains]; // Start with default domains
+
+        try {
+          // Fetch latest domains from the source
+          const res = await Network.get("https://fuwt.cc/mw666", {
+            "User-Agent": this.ua,
+          });
+          if (res.status === 200) {
+            // Find the base64 encoded domain list from the JavaScript variable
+            const match = res.body.match(/atob\('([A-Za-z0-9+/=]+)'\)/);
+            if (match && match[1]) {
+              const base64 = match[1];
+              const decodedString = Convert.decodeUtf8(
+                Convert.decodeBase64(base64),
+              );
+              const json = JSON.parse(decodedString);
+              domains = json.map((domain) => domain.trimEnd("/"));
+
+              // Save the new domain list
+              this.saveData("domains", JSON.stringify(domains));
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch latest domains, using defaults:", e);
+          // Load domains from saved data if available
+          try {
+            const savedDomains = await this.loadData("domains");
+            if (savedDomains) {
+              const savedDomainList = JSON.parse(savedDomains);
+              if (
+                Array.isArray(savedDomainList) &&
+                savedDomainList.length > 0
+              ) {
+                domains = savedDomainList;
+              }
+            }
+          } catch (loadError) {
+            console.warn("Could not load saved domains:", loadError);
+          }
+        } finally {
+          UI.cancelLoading(loadingId);
+        }
+
+        if (domains.length === 0) {
+          UI.showMessage("未找到可用域名。");
+          return;
+        }
+
+        const currentDomain =
+          this.loadData(this.#domain_key) || this.#defaultDomains[0];
+        const initialIndex = domains.findIndex((d) => d === currentDomain);
+
+        const selectedIndex = await UI.showSelectDialog(
+          "选择一个可用域名",
+          ["https://manwa.me", ...domains],
+          initialIndex,
+        );
+
+        if (selectedIndex != null) {
+          const selectedDomain = domains[selectedIndex];
+          this.saveData(this.#domain_key, selectedDomain);
+          UI.showMessage(`已切换域名至: ${selectedDomain}`);
+        }
+      },
     },
     imageSource: {
       type: "select",
@@ -281,12 +333,6 @@ class Manwa extends ComicSource {
         { value: "?v=20220726", text: "图源3" },
       ],
       default: "",
-    },
-    refreshDomain: {
-      type: "callback",
-      title: "刷新域名",
-      buttonText: "刷新",
-      callback: () => this.refreshDomainCallback(),
     },
     ua: {
       type: "input",
@@ -303,11 +349,28 @@ class Manwa extends ComicSource {
       type: "input",
       default: "1",
     },
-    manageCache: {
-      title: "Manage Cache",
+    clearCache: {
+      title: "Clear All Cache",
       type: "callback",
-      callback: () => {
-        this._manageCacheAction();
+      buttonText: "Clear",
+      callback: async () => {
+        const loadingId = UI.showLoading();
+        try {
+          // Get all cache keys and clear them
+          const allKeys = await this._getAllCacheKeys();
+          let clearedCount = 0;
+
+          for (const key of allKeys) {
+            await this._clearCacheKey(key);
+            clearedCount++;
+          }
+
+          UI.showMessage(`已清除 ${clearedCount} 个缓存项目`);
+        } catch (e) {
+          UI.showMessage("清除缓存时出错: " + e.message);
+        } finally {
+          UI.cancelLoading(loadingId);
+        }
       },
     },
   };
@@ -672,15 +735,6 @@ class Manwa extends ComicSource {
     const json = JSON.parse(decodedString);
     const domains = json.map((domain) => domain.trimEnd("/"));
 
-    // Update the static domain list
-    Manwa.domains = domains;
-
-    // Update the options in settings to match the new domain count
-    this.settings.domain.options = domains.map((domain, index) => ({
-      value: (index + 1).toString(),
-      text: `${domain}`,
-    }));
-
     // Save the new domain list
     this.saveData("domains", JSON.stringify(domains));
 
@@ -689,19 +743,15 @@ class Manwa extends ComicSource {
   }
 
   async init() {
-    // Load domains from saved data if available
+    // Load domains from saved data if available - this is kept for backward compatibility
     try {
       const savedDomains = await this.loadData("domains");
       if (savedDomains) {
         const domains = JSON.parse(savedDomains);
         if (Array.isArray(domains) && domains.length > 0) {
-          Manwa.domains = domains;
-
-          // Update the options in settings to match the loaded domain count
-          this.settings.domain.options = domains.map((domain, index) => ({
-            value: (index + 1).toString(),
-            text: `${domain}`,
-          }));
+          // Update the default domains list with saved domains
+          this.#defaultDomains.length = 0; // Clear the array
+          domains.forEach((domain) => this.#defaultDomains.push(domain)); // Add new domains
         }
       }
     } catch (e) {

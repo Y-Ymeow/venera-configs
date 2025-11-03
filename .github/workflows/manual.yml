@@ -26,8 +26,11 @@ jobs:
           echo "$FILE_LIST" | jq -r '.tree[].path | select(endswith(".js") or . == "index.json")' | while read -r filepath; do
             DOWNLOAD_URL="https://raw.githubusercontent.com/venera-app/venera-configs/main/$filepath"
             mkdir -p "$(dirname "$filepath")"
-            echo "Downloading $filepath..."
-            curl -s -f -L -o "$filepath" "$DOWNLOAD_URL"
+            # Use -z to only download if the remote file is newer than the local one.
+            # The local file's timestamp is used for the If-Modified-Since header.
+            # If the local file doesn't exist, it will be downloaded.
+            echo "Checking for updates for $filepath..."
+            curl -s -f -L -o "$filepath" -z "$filepath" "$DOWNLOAD_URL"
           done
       - name: Create merged JSON file
         id: merge_json
