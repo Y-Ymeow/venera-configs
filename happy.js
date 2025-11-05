@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.5";
+  version = "1.0.6";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -2088,15 +2088,6 @@ class HappyComicSource extends ComicSource {
       return this._withCache(
         `search.keyword_${keyword}.options_${optionKey}.page_${page}`,
         async () => {
-          await Network.get("https://m.happymh.com/sssearch", {
-            headers: {
-              "User-Agent":
-                this.loadSetting("ua") ||
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-              Referer: "https://m.happymh.com/",
-            },
-          });
-
           if (keyword === "") {
             // If keyword is empty, perform category search with filters
             // Default to "全部" category when no keyword is provided

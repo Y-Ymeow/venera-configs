@@ -2,7 +2,7 @@
 class Bakamanga extends ComicSource {
   name = "巴卡漫画";
   key = "bakamanga";
-  version = "1.3.4";
+  version = "1.3.5";
   minAppVersion = "1.6.0";
 
   url =
@@ -53,34 +53,57 @@ class Bakamanga extends ComicSource {
       title: "巴卡漫画",
       type: "multiPartPage",
       load: async () => {
-        const popularUrl = `${this.baseUrl}/?m_orderby=views`;
-        const latestUrl = `${this.baseUrl}/?m_orderby=latest`;
+        const popularUrl = `${this.baseUrl}/manhwa/`;
 
-        const [popularRes, latestRes] = await Promise.all([
-          Network.get(popularUrl),
-          Network.get(latestUrl),
-        ]);
+        try {
+          const popularRes = await Network.get(popularUrl, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+              Connection: "keep-alive",
+              "Accept-Encoding": "gzip, deflate, br, zstd",
+              Priority: "u=0, i",
+              "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+              Accept:
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
+          });
+          const popularDoc = new HtmlDocument(popularRes.body);
+          const popularComics = popularDoc
+            .querySelectorAll("div.page-item-detail")
+            .map((e) => this.#parseComic(e));
+          return [
+            {
+              title: "最新更新",
+              comics: popularComics,
+            },
+          ];
+        } catch (e) {
+          let randomList = [
+            "教授的課後輔導",
+            "燃烧",
+            "足球型男脱单指南",
+            "顶加套房的春天",
+          ];
+          await Network.get(
+            popularUrl +
+              randomList[Math.floor(Math.random() * randomList.length)],
+            {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+                Connection: "keep-alive",
+                "Accept-Encoding": "gzip, deflate, br, zstd",
+                Priority: "u=0, i",
+                "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+                Accept:
+                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              },
+            },
+          );
+        }
 
-        const popularDoc = new HtmlDocument(popularRes.body);
-        const popularComics = popularDoc
-          .querySelectorAll("div.page-item-detail")
-          .map((e) => this.#parseComic(e));
-
-        const latestDoc = new HtmlDocument(latestRes.body);
-        const latestComics = latestDoc
-          .querySelectorAll("div.page-item-detail")
-          .map((e) => this.#parseComic(e));
-
-        return [
-          {
-            title: "热门漫画",
-            comics: popularComics,
-          },
-          {
-            title: "最新更新",
-            comics: latestComics,
-          },
-        ];
+        return [];
       },
     },
   ];
