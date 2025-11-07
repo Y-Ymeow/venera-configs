@@ -2,7 +2,7 @@
 class MangaPark extends ComicSource {
   name = "MangaPark";
   key = "mangapark";
-  version = "1.0.5";
+  version = "1.0.6";
   minAppVersion = "1.4.0";
 
   url =
@@ -161,19 +161,44 @@ class MangaPark extends ComicSource {
   // 搜索功能
   search = {
     load: async (keyword, options, page) => {
-      const [sort, originalLangs, originalStatus, uploadStatus, chapterCount] =
-        options;
+      const [
+        sortOpt,
+        originalLangsOpt,
+        originalStatusOpt,
+        uploadStatusOpt,
+        chapterCountOpt,
+      ] = options;
+
+      // The app may stringify option values, so we need to parse them.
+      const sortby = sortOpt ? JSON.parse(sortOpt) : "field_score";
+      const origStatus = originalStatusOpt ? JSON.parse(originalStatusOpt) : "";
+      const siteStatus = uploadStatusOpt ? JSON.parse(uploadStatusOpt) : "";
+      const chapCount = chapterCountOpt ? JSON.parse(chapterCountOpt) : "";
+
+      // Handle multi-select language option, which can be an array, a JSON string of an array, or a raw string.
+      let incOLangs = null;
+      if (originalLangsOpt) {
+        if (Array.isArray(originalLangsOpt)) {
+          incOLangs = originalLangsOpt;
+        } else if (typeof originalLangsOpt === "string") {
+          try {
+            incOLangs = JSON.parse(originalLangsOpt);
+          } catch (e) {
+            incOLangs = [originalLangsOpt];
+          }
+        }
+      }
 
       const variables = {
         select: {
           page: page,
           size: 24,
-          query: keyword,
-          sortby: sort,
-          incOLangs: originalLangs ? JSON.parse(originalLangs) : null,
-          origStatus: originalStatus,
-          siteStatus: uploadStatus,
-          chapCount: chapterCount,
+          word: keyword,
+          sortby: sortby,
+          incOLangs: incOLangs,
+          origStatus: origStatus,
+          siteStatus: siteStatus,
+          chapCount: chapCount,
         },
       };
 
@@ -206,7 +231,7 @@ class MangaPark extends ComicSource {
         label: "原作语言",
         type: "multi-select",
         options: ["zh-中文", "en-英文", "ja-日文", "ko-韩文"],
-        default: null,
+        default: [],
       },
       {
         label: "原作状态",
