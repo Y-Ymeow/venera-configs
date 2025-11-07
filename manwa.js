@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.1.1";
+  version = "1.1.2";
   minAppVersion = "1.4.0";
 
   url =
@@ -106,151 +106,6 @@ class Manwa extends ComicSource {
     }
   }
 
-  _getAllCacheKeys() {
-    const timestamps = this.loadData("cache_timestamps") || {};
-    const deletableKeys = [];
-    if (timestamps.explore) {
-      Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`),
-      );
-    }
-    if (timestamps.comic) {
-      Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`),
-      );
-    }
-    return deletableKeys;
-  }
-
-  async _manageCacheAction() {
-    const options = [
-      "Clear All Cache",
-      "Clear Expired Cache",
-      "Clear Specific Cache",
-    ];
-    const selected = await UI.showSelectDialog("Cache Management", options);
-
-    if (selected === 0) {
-      // Clear All
-      this.deleteData("cache_timestamps");
-      this.deleteData("cache_data");
-      this.deleteData("cache_keys");
-      UI.showMessage("Manwa cache cleared.");
-    } else if (selected === 1) {
-      // Clear Expired
-      const count = this._clearExpiredCache();
-      UI.showMessage(`Cleared ${count} expired cache items.`);
-    } else if (selected === 2) {
-      // Clear Specific
-      const allKeys = this._getAllCacheKeys();
-
-      if (allKeys.length === 0) {
-        UI.showMessage("No cache entries to clear.");
-        return;
-      }
-
-      const selectedKeyIndex = await UI.showSelectDialog(
-        "Select cache key to clear",
-        allKeys,
-      );
-
-      if (selectedKeyIndex !== null) {
-        const keyToClear = allKeys[selectedKeyIndex];
-        this._clearCacheKey(keyToClear);
-        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
-      }
-    }
-  }
-
-  _clearCacheKey(key) {
-    const unset = (obj, p) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current || typeof current[part] !== "object") {
-          return;
-        }
-        current = current[part];
-      }
-      if (current) {
-        delete current[last];
-      }
-    };
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-    let keys = this.loadData("cache_keys") || {};
-
-    unset(timestamps, key);
-    unset(data, key);
-    unset(keys, key);
-
-    this.saveData("cache_timestamps", timestamps);
-    this.saveData("cache_data", data);
-    this.saveData("cache_keys", keys);
-  }
-
-  _clearExpiredCache() {
-    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
-    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-
-    let newTimestamps = {};
-    let newData = {};
-    let newKeys = {};
-
-    const get = (obj, p) =>
-      p.split(".").reduce((acc, part) => acc && acc[part], obj);
-    const set = (obj, p, val) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current[part]) {
-          current[part] = {};
-        }
-        current = current[part];
-      }
-      current[last] = val;
-      return obj;
-    };
-
-    const getAllKeys = (obj, prefix = "") => {
-      return Object.keys(obj).reduce((res, el) => {
-        if (typeof obj[el] === "object" && obj[el] !== null) {
-          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
-        }
-        return [...res, prefix + el];
-      }, []);
-    };
-
-    const allKeys = getAllKeys(timestamps);
-    let clearedCount = 0;
-
-    for (const key of allKeys) {
-      const timestamp = get(timestamps, key);
-      const isExpired = Date.now() - timestamp > CACHE_DURATION;
-
-      if (!isExpired) {
-        set(newTimestamps, key, timestamp);
-        set(newData, key, get(data, key));
-        set(newKeys, key, true);
-      } else {
-        clearedCount++;
-      }
-    }
-
-    this.saveData("cache_timestamps", newTimestamps);
-    this.saveData("cache_data", newData);
-    this.saveData("cache_keys", newKeys);
-
-    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
-    return clearedCount;
-  }
-
   settings = {
     domainSelector: {
       title: "选择域名",
@@ -341,37 +196,24 @@ class Manwa extends ComicSource {
       default: Manwa.ua,
     },
     enableCache: {
-      title: "Enable Cache",
+      title: "启用缓存",
       type: "switch",
       default: true,
     },
     cacheDuration: {
-      title: "Cache Duration (hours)",
+      title: "缓存时间 (小时)",
       type: "input",
       default: "1",
     },
     clearCache: {
-      title: "Clear All Cache",
+      title: "清除缓存",
       type: "callback",
-      buttonText: "Clear",
-      callback: async () => {
-        const loadingId = UI.showLoading();
-        try {
-          // Get all cache keys and clear them
-          const allKeys = await this._getAllCacheKeys();
-          let clearedCount = 0;
-
-          for (const key of allKeys) {
-            await this._clearCacheKey(key);
-            clearedCount++;
-          }
-
-          UI.showMessage(`已清除 ${clearedCount} 个缓存项目`);
-        } catch (e) {
-          UI.showMessage("清除缓存时出错: " + e.message);
-        } finally {
-          UI.cancelLoading(loadingId);
-        }
+      buttonText: "清除",
+      callback: () => {
+        this.deleteData("cache_timestamps");
+        this.deleteData("cache_data");
+        this.deleteData("cache_keys");
+        UI.showMessage("已清除缓存");
       },
     },
   };
@@ -498,30 +340,25 @@ class Manwa extends ComicSource {
       title: "漫蛙",
       type: "multiPartPage",
       load: async () => {
-        const cacheKey = `explore.${this.domain}`;
-        return this._withCache(cacheKey, async () => {
-          /** 读取推荐 */
-          const res = await Network.get(this.buildUrl("rank"), {
-            "User-Agent": Manwa.ua,
-          });
-          if (res.status !== 200) {
-            throw new Error(`Failed to load recommendations: ${res.status}`);
-          }
-
-          const document = new HtmlDocument(res.body);
-          const comicElements = document.querySelectorAll("#rankList_2 > a");
-          const comics = comicElements.map((element) =>
-            this.parseComic(element),
-          );
-
-          // Return as a single category
-          return [
-            {
-              title: "推荐",
-              comics: comics,
-            },
-          ];
+        /** 读取推荐 */
+        const res = await Network.get(this.buildUrl("rank"), {
+          "User-Agent": Manwa.ua,
         });
+        if (res.status !== 200) {
+          throw new Error(`Failed to load recommendations: ${res.status}`);
+        }
+
+        const document = new HtmlDocument(res.body);
+        const comicElements = document.querySelectorAll("#rankList_2 > a");
+        const comics = comicElements.map((element) => this.parseComic(element));
+
+        // Return as a single category
+        return [
+          {
+            title: "推荐",
+            comics: comics,
+          },
+        ];
       },
     },
   ];
@@ -634,34 +471,31 @@ class Manwa extends ComicSource {
      * @returns {Promise<{images: string[]}>}
      */
     loadEp: async (comicId, epId) => {
-      const cacheKey = `comic.${comicId}.ep.${epId}`;
-      return this._withCache(cacheKey, async () => {
-        // Get the image source setting
-        const imageSourceParam = this.loadSetting("imageSource") || "";
+      // Get the image source setting
+      const imageSourceParam = this.loadSetting("imageSource") || "";
 
-        const res = await Network.get(
-          this.buildUrl(`chapter/${epId}${imageSourceParam}`),
-          {
-            "User-Agent": Manwa.ua,
-          },
-        );
+      const res = await Network.get(
+        this.buildUrl(`chapter/${epId}${imageSourceParam}`),
+        {
+          "User-Agent": Manwa.ua,
+        },
+      );
 
-        if (res.status !== 200) {
-          throw new Error(`Failed to load chapter images: ${res.status}`);
-        }
+      if (res.status !== 200) {
+        throw new Error(`Failed to load chapter images: ${res.status}`);
+      }
 
-        const document = new HtmlDocument(res.body);
-        const imageElements = document.querySelectorAll(
-          "#cp_img > div.img-content > img[data-r-src]",
-        );
-        const images = imageElements.map(
-          (element) => element.attributes["data-r-src"],
-        );
+      const document = new HtmlDocument(res.body);
+      const imageElements = document.querySelectorAll(
+        "#cp_img > div.img-content > img[data-r-src]",
+      );
+      const images = imageElements.map(
+        (element) => element.attributes["data-r-src"],
+      );
 
-        return {
-          images: images,
-        };
-      });
+      return {
+        images: images,
+      };
     },
     /**
      * [Optional] provide configs for an image loading

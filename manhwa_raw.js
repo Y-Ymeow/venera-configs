@@ -3,7 +3,6 @@
 class ManhwaRawComicSource extends ComicSource {
   // name of the source
   name = "Manhwa Raw";
-
   // unique id of the source
   key = "manhwa_raw";
 
@@ -97,151 +96,6 @@ class ManhwaRawComicSource extends ComicSource {
     }
   }
 
-  _getAllCacheKeys() {
-    const timestamps = this.loadData("cache_timestamps") || {};
-    const deletableKeys = [];
-    if (timestamps.explore) {
-      Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`),
-      );
-    }
-    if (timestamps.comic) {
-      Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`),
-      );
-    }
-    return deletableKeys;
-  }
-
-  async _manageCacheAction() {
-    const options = [
-      "Clear All Cache",
-      "Clear Expired Cache",
-      "Clear Specific Cache",
-    ];
-    const selected = await UI.showSelectDialog("Cache Management", options);
-
-    if (selected === 0) {
-      // Clear All
-      this.deleteData("cache_timestamps");
-      this.deleteData("cache_data");
-      this.deleteData("cache_keys");
-      UI.showMessage("Manhwa Raw cache cleared.");
-    } else if (selected === 1) {
-      // Clear Expired
-      const count = this._clearExpiredCache();
-      UI.showMessage(`Cleared ${count} expired cache items.`);
-    } else if (selected === 2) {
-      // Clear Specific
-      const allKeys = this._getAllCacheKeys();
-
-      if (allKeys.length === 0) {
-        UI.showMessage("No cache entries to clear.");
-        return;
-      }
-
-      const selectedKeyIndex = await UI.showSelectDialog(
-        "Select cache key to clear",
-        allKeys,
-      );
-
-      if (selectedKeyIndex !== null) {
-        const keyToClear = allKeys[selectedKeyIndex];
-        this._clearCacheKey(keyToClear);
-        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
-      }
-    }
-  }
-
-  _clearCacheKey(key) {
-    const unset = (obj, p) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current || typeof current[part] !== "object") {
-          return;
-        }
-        current = current[part];
-      }
-      if (current) {
-        delete current[last];
-      }
-    };
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-    let keys = this.loadData("cache_keys") || {};
-
-    unset(timestamps, key);
-    unset(data, key);
-    unset(keys, key);
-
-    this.saveData("cache_timestamps", timestamps);
-    this.saveData("cache_data", data);
-    this.saveData("cache_keys", keys);
-  }
-
-  _clearExpiredCache() {
-    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
-    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-
-    let newTimestamps = {};
-    let newData = {};
-    let newKeys = {};
-
-    const get = (obj, p) =>
-      p.split(".").reduce((acc, part) => acc && acc[part], obj);
-    const set = (obj, p, val) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current[part]) {
-          current[part] = {};
-        }
-        current = current[part];
-      }
-      current[last] = val;
-      return obj;
-    };
-
-    const getAllKeys = (obj, prefix = "") => {
-      return Object.keys(obj).reduce((res, el) => {
-        if (typeof obj[el] === "object" && obj[el] !== null) {
-          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
-        }
-        return [...res, prefix + el];
-      }, []);
-    };
-
-    const allKeys = getAllKeys(timestamps);
-    let clearedCount = 0;
-
-    for (const key of allKeys) {
-      const timestamp = get(timestamps, key);
-      const isExpired = Date.now() - timestamp > CACHE_DURATION;
-
-      if (!isExpired) {
-        set(newTimestamps, key, timestamp);
-        set(newData, key, get(data, key));
-        set(newKeys, key, true);
-      } else {
-        clearedCount++;
-      }
-    }
-
-    this.saveData("cache_timestamps", newTimestamps);
-    this.saveData("cache_data", newData);
-    this.saveData("cache_keys", newKeys);
-
-    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
-    return clearedCount;
-  }
-
   /**
    * Extracts the manga slug from a URL like https://manhwa-raw.com/manga/love-motion-capture/
    * @param {string} url
@@ -327,38 +181,31 @@ class ManhwaRawComicSource extends ComicSource {
        * - for `mixed` type, use param `page` as index. for each index(0-based), return {data: [], maxPage: number?}, data is an array contains Comic[] or {title: string, comics: Comic[], viewMore: string?}
        */
       load: async (page) => {
-        const cacheKey = `explore.page.${page}`;
-        return this._withCache(cacheKey, async () => {
-          // return {
-          //   comics: [],
-          //   maxPage: 1,
-          // };
-          let res = await Network.get(
-            this.domain + (page > 1 ? "/page/" + page : ""),
-            {
-              headers: {
-                "User-Agent": this.ua,
-              },
+        let res = await Network.get(
+          this.domain + (page > 1 ? "/page/" + page : ""),
+          {
+            headers: {
+              "User-Agent": this.ua,
             },
-          );
+          },
+        );
 
-          if (res.status !== 200) {
-            throw `Invalid status code: ${res.status}`;
-          }
+        if (res.status !== 200) {
+          throw `Invalid status code: ${res.status}`;
+        }
 
-          let document = new HtmlDocument(res.body);
+        let document = new HtmlDocument(res.body);
 
-          let latestComics = document
-            .querySelectorAll("div.page-item-detail")
-            .map((e) => this.parseComicEx(e));
+        let latestComics = document
+          .querySelectorAll("div.page-item-detail")
+          .map((e) => this.parseComicEx(e));
 
-          const hasNext = !!document.querySelector("a.nextpostslink");
+        const hasNext = !!document.querySelector("a.nextpostslink");
 
-          return {
-            comics: latestComics,
-            maxPage: hasNext ? page + 1 : page,
-          };
-        });
+        return {
+          comics: latestComics,
+          maxPage: hasNext ? page + 1 : page,
+        };
       },
     },
   ];
@@ -683,35 +530,32 @@ class ManhwaRawComicSource extends ComicSource {
      * @returns {Promise<{images: string[]}>}
      */
     loadEp: async (comicId, epId) => {
-      const cacheKey = `comic.${comicId}.ep.${epId}`;
-      return this._withCache(cacheKey, async () => {
-        let chapterId = epId || comicId; // Use epId if provided, otherwise use comicId
-        let res = await Network.get(this.generateMangaUrl(comicId, chapterId), {
-          headers: {
-            "User-Agent": this.ua,
-          },
-        });
-        if (res.status !== 200) {
-          throw `Invalid status code: ${res.status}`;
-        }
-
-        let document = new HtmlDocument(res.body);
-
-        // Get images from the chapter page
-        // Try multiple selectors based on the Madara theme structure
-        let imageElements = document.querySelectorAll(
-          ".reading-content img.wp-manga-chapter-img",
-        );
-
-        let images = [];
-        imageElements.map((el) => {
-          images.push(el.attributes["data-src"].trim());
-        });
-
-        return {
-          images: images,
-        };
+      let chapterId = epId || comicId; // Use epId if provided, otherwise use comicId
+      let res = await Network.get(this.generateMangaUrl(comicId, chapterId), {
+        headers: {
+          "User-Agent": this.ua,
+        },
       });
+      if (res.status !== 200) {
+        throw `Invalid status code: ${res.status}`;
+      }
+
+      let document = new HtmlDocument(res.body);
+
+      // Get images from the chapter page
+      // Try multiple selectors based on the Madara theme structure
+      let imageElements = document.querySelectorAll(
+        ".reading-content img.wp-manga-chapter-img",
+      );
+
+      let images = [];
+      imageElements.map((el) => {
+        images.push(el.attributes["data-src"].trim());
+      });
+
+      return {
+        images: images,
+      };
     },
     /**
      * [Optional] provide configs for an image loading
@@ -795,20 +639,24 @@ class ManhwaRawComicSource extends ComicSource {
      */
   settings = {
     enableCache: {
-      title: "Enable Cache",
+      title: "启用缓存",
       type: "switch",
       default: true,
     },
     cacheDuration: {
-      title: "Cache Duration (hours)",
+      title: "缓存时间 (小时)",
       type: "input",
       default: "1",
     },
-    manageCache: {
-      title: "Manage Cache",
-      type: "callback",
+    clearCache: {
+      title: "清除缓存",
+      type: "button",
+      buttonText: "callback",
       callback: () => {
-        this._manageCacheAction();
+        this.deleteData("cache_timestamps");
+        this.deleteData("cache_data");
+        this.deleteData("cache_keys");
+        UI.showMessage("已清除缓存");
       },
     },
   };

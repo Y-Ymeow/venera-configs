@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.6";
+  version = "1.0.7";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -77,151 +77,6 @@ class HappyComicSource extends ComicSource {
     }
   }
 
-  _getAllCacheKeys() {
-    const timestamps = this.loadData("cache_timestamps") || {};
-    const deletableKeys = [];
-    if (timestamps.explore) {
-      Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`),
-      );
-    }
-    if (timestamps.comic) {
-      Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`),
-      );
-    }
-    return deletableKeys;
-  }
-
-  async _manageCacheAction() {
-    const options = [
-      "Clear All Cache",
-      "Clear Expired Cache",
-      "Clear Specific Cache",
-    ];
-    const selected = await UI.showSelectDialog("Cache Management", options);
-
-    if (selected === 0) {
-      // Clear All
-      this.deleteData("cache_timestamps");
-      this.deleteData("cache_data");
-      this.deleteData("cache_keys");
-      UI.showMessage("Happy cache cleared.");
-    } else if (selected === 1) {
-      // Clear Expired
-      const count = this._clearExpiredCache();
-      UI.showMessage(`Cleared ${count} expired cache items.`);
-    } else if (selected === 2) {
-      // Clear Specific
-      const allKeys = this._getAllCacheKeys();
-
-      if (allKeys.length === 0) {
-        UI.showMessage("No cache entries to clear.");
-        return;
-      }
-
-      const selectedKeyIndex = await UI.showSelectDialog(
-        "Select cache key to clear",
-        allKeys,
-      );
-
-      if (selectedKeyIndex !== null) {
-        const keyToClear = allKeys[selectedKeyIndex];
-        this._clearCacheKey(keyToClear);
-        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
-      }
-    }
-  }
-
-  _clearCacheKey(key) {
-    const unset = (obj, p) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current || typeof current[part] !== "object") {
-          return;
-        }
-        current = current[part];
-      }
-      if (current) {
-        delete current[last];
-      }
-    };
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-    let keys = this.loadData("cache_keys") || {};
-
-    unset(timestamps, key);
-    unset(data, key);
-    unset(keys, key);
-
-    this.saveData("cache_timestamps", timestamps);
-    this.saveData("cache_data", data);
-    this.saveData("cache_keys", keys);
-  }
-
-  _clearExpiredCache() {
-    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
-    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-
-    let newTimestamps = {};
-    let newData = {};
-    let newKeys = {};
-
-    const get = (obj, p) =>
-      p.split(".").reduce((acc, part) => acc && acc[part], obj);
-    const set = (obj, p, val) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current[part]) {
-          current[part] = {};
-        }
-        current = current[part];
-      }
-      current[last] = val;
-      return obj;
-    };
-
-    const getAllKeys = (obj, prefix = "") => {
-      return Object.keys(obj).reduce((res, el) => {
-        if (typeof obj[el] === "object" && obj[el] !== null) {
-          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
-        }
-        return [...res, prefix + el];
-      }, []);
-    };
-
-    const allKeys = getAllKeys(timestamps);
-    let clearedCount = 0;
-
-    for (const key of allKeys) {
-      const timestamp = get(timestamps, key);
-      const isExpired = Date.now() - timestamp > CACHE_DURATION;
-
-      if (!isExpired) {
-        set(newTimestamps, key, timestamp);
-        set(newData, key, get(data, key));
-        set(newKeys, key, true);
-      } else {
-        clearedCount++;
-      }
-    }
-
-    this.saveData("cache_timestamps", newTimestamps);
-    this.saveData("cache_data", newData);
-    this.saveData("cache_keys", newKeys);
-
-    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
-    return clearedCount;
-  }
-
   init() {
     // Initialize the cache system
   }
@@ -231,40 +86,38 @@ class HappyComicSource extends ComicSource {
       title: "嗨皮漫画",
       type: "multiPageComicList",
       load: async (page) => {
-        return this._withCache(`explore.page_${page}`, async () => {
-          var res = await fetch(
-            "https://m.happymh.com/apis/c/index?pn=" +
-              page +
-              "&series_status=-1&order=last_date",
-            {
-              headers: {
-                "User-Agent":
-                  this.loadSetting("ua") ||
-                  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-                Referer: "https://m.happymh.com/latest",
-                Priority: "u=4",
-                "Sec-GPC": 1,
-                Connection: "keep-alive",
-              },
+        var res = await fetch(
+          "https://m.happymh.com/apis/c/index?pn=" +
+            page +
+            "&series_status=-1&order=last_date",
+          {
+            headers: {
+              "User-Agent":
+                this.loadSetting("ua") ||
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+              Referer: "https://m.happymh.com/latest",
+              Priority: "u=4",
+              "Sec-GPC": 1,
+              Connection: "keep-alive",
             },
-          );
-          if (res.status !== 200) {
-            throw new Error("Explore failed: " + res.status);
-          }
+          },
+        );
+        if (res.status !== 200) {
+          throw new Error("Explore failed: " + res.status);
+        }
 
-          var data = await res.json();
-          var comics = [];
-          for (var i = 0; i < data.data.items.length; i++) {
-            var item = data.data.items[i];
-            var comic = this.parseComic(item);
-            comics.push(comic);
-          }
+        var data = await res.json();
+        var comics = [];
+        for (var i = 0; i < data.data.items.length; i++) {
+          var item = data.data.items[i];
+          var comic = this.parseComic(item);
+          comics.push(comic);
+        }
 
-          return {
-            comics: comics,
-            maxPage: data.data.isEnd ? page : page + 1,
-          };
-        });
+        return {
+          comics: comics,
+          maxPage: data.data.isEnd ? page : page + 1,
+        };
       },
     },
   ];
@@ -1945,109 +1798,103 @@ class HappyComicSource extends ComicSource {
   };
 
   categoryComics = {
-    load: async function (category, param, options, page) {
-      const optionKey = options.join("_") || "default";
-      return this._withCache(
-        `category_${category}.param_${param}.options_${optionKey}.page_${page}`,
-        async () => {
-          // Track which filters have been applied via category to avoid conflicts with options
-          let hasCategoryGenre = false;
-          let hasCategoryArea = false;
-          let hasCategoryAudience = false;
-          let hasCategoryStatus = false;
+    load: async (category, param, options, page) => {
+      // Track which filters have been applied via category to avoid conflicts with options
+      let hasCategoryGenre = false;
+      let hasCategoryArea = false;
+      let hasCategoryAudience = false;
+      let hasCategoryStatus = false;
 
-          // Parse parameters
-          var genre = "";
-          var area = "";
-          var audience = "";
-          var status = "-1"; // Default to all statuses
+      // Parse parameters
+      var genre = "";
+      var area = "";
+      var audience = "";
+      var status = "-1"; // Default to all statuses
 
-          // Handle the main category based on its type
-          // Check category type based on predefined values
-          const areaValues = [
-            "china",
-            "japan",
-            "hongkong",
-            "europe",
-            "korea",
-            "other",
-          ];
-          const audienceValues = ["shaonian", "shaonv", "qingnian", "BL", "GL"];
-          const statusValues = ["连载中", "完结"];
+      // Handle the main category based on its type
+      // Check category type based on predefined values
+      const areaValues = [
+        "china",
+        "japan",
+        "hongkong",
+        "europe",
+        "korea",
+        "other",
+      ];
+      const audienceValues = ["shaonian", "shaonv", "qingnian", "BL", "GL"];
+      const statusValues = ["连载中", "完结"];
 
-          if (category !== "全部") {
-            if (areaValues.includes(category)) {
-              area = category;
-              hasCategoryArea = true;
-            } else if (audienceValues.includes(category)) {
-              audience = category;
-              hasCategoryAudience = true;
-            } else if (statusValues.includes(category)) {
-              status = category === "连载中" ? "0" : "1";
-              hasCategoryStatus = true;
-            } else {
-              // Treat as genre
-              genre = category;
-              hasCategoryGenre = true;
-            }
+      if (category !== "全部") {
+        if (areaValues.includes(category)) {
+          area = category;
+          hasCategoryArea = true;
+        } else if (audienceValues.includes(category)) {
+          audience = category;
+          hasCategoryAudience = true;
+        } else if (statusValues.includes(category)) {
+          status = category === "连载中" ? "0" : "1";
+          hasCategoryStatus = true;
+        } else {
+          // Treat as genre
+          genre = category;
+          hasCategoryGenre = true;
+        }
+      }
+
+      // Apply filters from options since now we only have one "all" category
+      // But only if the corresponding category filter hasn't been applied yet
+      for (var i = 0; i < options.length; i++) {
+        var option = options[i];
+        if (option.includes("area@")) {
+          // Only apply area option if no category area filter was applied
+          if (!hasCategoryArea) {
+            area = option.split("-")[0].split("@")[1] || "";
           }
-
-          // Apply filters from options since now we only have one "all" category
-          // But only if the corresponding category filter hasn't been applied yet
-          for (var i = 0; i < options.length; i++) {
-            var option = options[i];
-            if (option.includes("area@")) {
-              // Only apply area option if no category area filter was applied
-              if (!hasCategoryArea) {
-                area = option.split("-")[0].split("@")[1] || "";
-              }
-            } else if (option.includes("audience@")) {
-              // Only apply audience option if no category audience filter was applied
-              if (!hasCategoryAudience) {
-                audience = option.split("-")[0].split("@")[1] || "";
-              }
-            } else if (option.includes("status@")) {
-              // Only apply status option if no category status filter was applied
-              if (!hasCategoryStatus) {
-                status = option.split("-")[0].split("@")[1] || "-1";
-              }
-            }
+        } else if (option.includes("audience@")) {
+          // Only apply audience option if no category audience filter was applied
+          if (!hasCategoryAudience) {
+            audience = option.split("-")[0].split("@")[1] || "";
           }
-
-          // Build URL
-          var url = "https://m.happymh.com/apis/c/index?";
-          if (genre !== "") url += "genre=" + genre + "&";
-          if (area !== "") url += "area=" + area + "&";
-          if (audience !== "") url += "audience=" + audience + "&";
-          if (status !== "-1") url += "series_status=" + status + "&";
-          url += "pn=" + page;
-
-          var res = await fetch(url, {
-            headers: {
-              "User-Agent":
-                this.loadSetting("ua") ||
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-              Referer: "https://m.happymh.com/latest",
-            },
-          });
-          if (res.status !== 200) {
-            throw new Error("CategoryComics failed: " + res.status);
+        } else if (option.includes("status@")) {
+          // Only apply status option if no category status filter was applied
+          if (!hasCategoryStatus) {
+            status = option.split("-")[0].split("@")[1] || "-1";
           }
-          var data = await res.json();
-          var comics = [];
-          for (var i = 0; i < data.data.items.length; i++) {
-            var item = data.data.items[i];
-            var comic = this.parseComic(item);
-            comics.push(comic);
-          }
+        }
+      }
 
-          return {
-            comics: comics,
-            maxPage: data.data.isEnd ? page : page + 1,
-          };
+      // Build URL
+      var url = "https://m.happymh.com/apis/c/index?";
+      if (genre !== "") url += "genre=" + genre + "&";
+      if (area !== "") url += "area=" + area + "&";
+      if (audience !== "") url += "audience=" + audience + "&";
+      if (status !== "-1") url += "series_status=" + status + "&";
+      url += "pn=" + page;
+
+      var res = await fetch(url, {
+        headers: {
+          "User-Agent":
+            this.loadSetting("ua") ||
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+          Referer: "https://m.happymh.com/latest",
         },
-      );
-    }.bind(this),
+      });
+      if (res.status !== 200) {
+        throw new Error("CategoryComics failed: " + res.status);
+      }
+      var data = await res.json();
+      var comics = [];
+      for (var i = 0; i < data.data.items.length; i++) {
+        var item = data.data.items[i];
+        var comic = this.parseComic(item);
+        comics.push(comic);
+      }
+
+      return {
+        comics: comics,
+        maxPage: data.data.isEnd ? page : page + 1,
+      };
+    },
     optionList: [
       {
         label: "地区",
@@ -2083,49 +1930,41 @@ class HappyComicSource extends ComicSource {
   };
 
   search = {
-    load: async function (keyword, options, page) {
-      const optionKey = options.join("_") || "default";
-      return this._withCache(
-        `search.keyword_${keyword}.options_${optionKey}.page_${page}`,
-        async () => {
-          if (keyword === "") {
-            // If keyword is empty, perform category search with filters
-            // Default to "全部" category when no keyword is provided
-            return await this.categoryComics.load("全部", null, options, page);
-          }
+    load: async (keyword, options, page) => {
+      if (!keyword) {
+        // Default to "全部" category when no keyword is provided
+        return await this.categoryComics.load("全部", null, options, page);
+      }
 
-          var res = await Network.post(
-            "https://m.happymh.com/v2.0/apis/manga/ssearch",
-            {
-              headers: {
-                "Content-Type":
-                  "application/x-www-form-urlencoded; charset=UTF-8",
-                Referer: "https://m.happymh.com/sssearch",
-                "User-Agent":
-                  this.loadSetting("ua") ||
-                  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-              },
-              body: "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
-            },
-          );
-          if (res.status !== 200) {
-            throw new Error("Search failed: " + res.status);
-          }
-          var data = await res.json();
-          var comics = [];
-          for (var i = 0; i < data.data.items.length; i++) {
-            var item = data.data.items[i];
-            var comic = this.parseComic(item);
-            comics.push(comic);
-          }
-
-          return {
-            comics: comics,
-            maxPage: page, // Search typically doesn't have pagination in this API
-          };
+      var res = await Network.post(
+        "https://m.happymh.com/v2.0/apis/manga/ssearch",
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            Referer: "https://m.happymh.com/sssearch",
+            "User-Agent":
+              this.loadSetting("ua") ||
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+          },
+          body: "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
         },
       );
-    }.bind(this),
+      if (res.status !== 200) {
+        throw new Error("Search failed: " + res.status);
+      }
+      var data = await res.json();
+      var comics = [];
+      for (var i = 0; i < data.data.items.length; i++) {
+        var item = data.data.items[i];
+        var comic = this.parseComic(item);
+        comics.push(comic);
+      }
+
+      return {
+        comics: comics,
+        maxPage: page, // Search typically doesn't have pagination in this API
+      };
+    },
   };
 
   comic = {
@@ -2241,46 +2080,39 @@ class HappyComicSource extends ComicSource {
     },
 
     loadEp: async (comicId, epId) => {
-      return this._withCache(
-        `comic_${comicId}.chapter_${epId}.images`,
-        async () => {
-          // First, find the chapter code using the chapterId
-          var chapterCode = epId;
-          // Now get the images using the chapter code
-          var res = await fetch(
-            "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-              chapterCode +
-              "&v=v3.1818134",
-            {
-              headers: {
-                "User-Agent":
-                  this.loadSetting("ua") ||
-                  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-                Referer: "https://m.happymh.com" + epId,
-                "X-Requested-With": "XMLHttpRequest",
-              },
-            },
-          );
-          if (res.status !== 200) {
-            throw new Error("LoadEp failed: " + res.status);
-          }
-          var data = await res.json();
+      // Get chapter id from epId
+      var chapterId = epId.split("/").pop().split(".")[0];
 
-          // Extract images that belong to current chapter (n == 0)
-          var images = [];
-          for (var i = 0; i < data.data.scans.length; i++) {
-            var scan = data.data.scans[i];
-            if (scan.n === 0) {
-              // Only include images from current chapter, not next chapter
-              images.push(scan.url);
-            }
-          }
-
-          return {
-            images: images,
-          };
+      var res = await Network.get(
+        "https://m.happymh.com/apis/c/chapter/" + chapterId + "?_update=true",
+        {
+          headers: {
+            "User-Agent":
+              this.loadSetting("ua") ||
+              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
+            Referer: "https://m.happymh.com" + epId,
+            "X-Requested-With": "XMLHttpRequest",
+          },
         },
       );
+      if (res.status !== 200) {
+        throw new Error("LoadEp failed: " + res.status);
+      }
+      var data = await res.json();
+
+      // Extract images that belong to current chapter (n == 0)
+      var images = [];
+      for (var i = 0; i < data.data.scans.length; i++) {
+        var scan = data.data.scans[i];
+        if (scan.n === 0) {
+          // Only include images from current chapter, not next chapter
+          images.push(scan.url);
+        }
+      }
+
+      return {
+        images: images,
+      };
     },
 
     onImageLoad: function (url, comicId, epId) {
@@ -2321,20 +2153,24 @@ class HappyComicSource extends ComicSource {
       },
     },
     enableCache: {
-      title: "Enable Cache",
+      title: "启用缓存",
       type: "switch",
       default: true,
     },
     cacheDuration: {
-      title: "Cache Duration (hours)",
+      title: "缓存时间 (小时)",
       type: "input",
       default: "1",
     },
-    manageCache: {
-      title: "Manage Cache",
+    clearCache: {
+      title: "清除缓存",
       type: "callback",
+      buttonText: "清除",
       callback: () => {
-        this._manageCacheAction();
+        this.deleteData("cache_timestamps");
+        this.deleteData("cache_data");
+        this.deleteData("cache_keys");
+        UI.showMessage("已清除缓存");
       },
     },
   };

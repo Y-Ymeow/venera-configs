@@ -2,7 +2,7 @@ class Goda extends ComicSource {
   // Required metadata
   name = "Goda 漫画";
   key = "goda";
-  version = "1.2.8";
+  version = "1.2.9";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/goda.js";
@@ -31,20 +31,24 @@ class Goda extends ComicSource {
       },
     },
     enableCache: {
-      title: "Enable Cache",
+      title: "启用缓存",
       type: "switch",
       default: true,
     },
     cacheDuration: {
-      title: "Cache Duration (hours)",
+      title: "缓存时间 (小时)",
       type: "input",
       default: "1",
     },
-    manageCache: {
-      title: "Manage Cache",
+    clearCache: {
+      title: "清除缓存",
       type: "callback",
+      buttonText: "清除",
       callback: () => {
-        this._manageCacheAction();
+        this.deleteData("cache_timestamps");
+        this.deleteData("cache_data");
+        this.deleteData("cache_keys");
+        UI.showMessage("已清除缓存");
       },
     },
   };
@@ -125,217 +129,69 @@ class Goda extends ComicSource {
     }
   }
 
-  _getAllCacheKeys() {
-    const timestamps = this.loadData("cache_timestamps") || {};
-    const deletableKeys = [];
-    if (timestamps.explore) {
-      Object.keys(timestamps.explore).forEach((lang) =>
-        deletableKeys.push(`explore.${lang}`),
-      );
-    }
-    if (timestamps.comic) {
-      Object.keys(timestamps.comic).forEach((id) =>
-        deletableKeys.push(`comic.${id}`),
-      );
-    }
-    return deletableKeys;
-  }
-
-  async _manageCacheAction() {
-    const options = [
-      "Clear All Cache",
-      "Clear Expired Cache",
-      "Clear Specific Cache",
-    ];
-    const selected = await UI.showSelectDialog("Cache Management", options);
-
-    if (selected === 0) {
-      // Clear All
-      this.deleteData("cache_timestamps");
-      this.deleteData("cache_data");
-      this.deleteData("cache_keys");
-      UI.showMessage("Goda cache cleared.");
-    } else if (selected === 1) {
-      // Clear Expired
-      const count = this._clearExpiredCache();
-      UI.showMessage(`Cleared ${count} expired cache items.`);
-    } else if (selected === 2) {
-      // Clear Specific
-      const allKeys = this._getAllCacheKeys();
-
-      if (allKeys.length === 0) {
-        UI.showMessage("No cache entries to clear.");
-        return;
-      }
-
-      const selectedKeyIndex = await UI.showSelectDialog(
-        "Select cache key to clear",
-        allKeys,
-      );
-
-      if (selectedKeyIndex !== null) {
-        const keyToClear = allKeys[selectedKeyIndex];
-        this._clearCacheKey(keyToClear);
-        UI.showMessage(`Cache for key '${keyToClear}' cleared.`);
-      }
-    }
-  }
-
-  _clearCacheKey(key) {
-    const unset = (obj, p) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current || typeof current[part] !== "object") {
-          return;
-        }
-        current = current[part];
-      }
-      if (current) {
-        delete current[last];
-      }
-    };
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-    let keys = this.loadData("cache_keys") || {};
-
-    unset(timestamps, key);
-    unset(data, key);
-    unset(keys, key);
-
-    this.saveData("cache_timestamps", timestamps);
-    this.saveData("cache_data", data);
-    this.saveData("cache_keys", keys);
-  }
-
-  _clearExpiredCache() {
-    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
-    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
-
-    let timestamps = this.loadData("cache_timestamps") || {};
-    let data = this.loadData("cache_data") || {};
-
-    let newTimestamps = {};
-    let newData = {};
-    let newKeys = {};
-
-    const get = (obj, p) =>
-      p.split(".").reduce((acc, part) => acc && acc[part], obj);
-    const set = (obj, p, val) => {
-      const parts = p.split(".");
-      const last = parts.pop();
-      let current = obj;
-      for (const part of parts) {
-        if (!current[part]) {
-          current[part] = {};
-        }
-        current = current[part];
-      }
-      current[last] = val;
-      return obj;
-    };
-
-    const getAllKeys = (obj, prefix = "") => {
-      return Object.keys(obj).reduce((res, el) => {
-        if (typeof obj[el] === "object" && obj[el] !== null) {
-          return [...res, ...getAllKeys(obj[el], prefix + el + ".")];
-        }
-        return [...res, prefix + el];
-      }, []);
-    };
-
-    const allKeys = getAllKeys(timestamps);
-    let clearedCount = 0;
-
-    for (const key of allKeys) {
-      const timestamp = get(timestamps, key);
-      const isExpired = Date.now() - timestamp > CACHE_DURATION;
-
-      if (!isExpired) {
-        set(newTimestamps, key, timestamp);
-        set(newData, key, get(data, key));
-        set(newKeys, key, true);
-      } else {
-        clearedCount++;
-      }
-    }
-
-    this.saveData("cache_timestamps", newTimestamps);
-    this.saveData("cache_data", newData);
-    this.saveData("cache_keys", newKeys);
-
-    console.log(`[Cache] Cleared ${clearedCount} expired items.`);
-    return clearedCount;
-  }
-
   explore = [
     {
       title: "GoDa 漫画",
       type: "multiPageComicList",
       load: async (page) => {
-        const cacheKey = `explore.${this.getBaseUrl()}.${page}`;
-        return this._withCache(cacheKey, async () => {
-          const baseUrl = this.getBaseUrl();
-          const res = await Network.get(`${baseUrl}/newss/page/${page}`, {
-            headers: {
-              Referer: `${baseUrl}/`,
-              "User-Agent": this.ua,
-            },
-          });
-
-          if (res.status !== 200) {
-            throw new Error(`Failed to fetch latest updates: ${res.status}`);
-          }
-
-          const html = res.body;
-          const doc = new HtmlDocument(html);
-
-          const comics = [];
-          const comicElements = doc.querySelectorAll(
-            ".container > .cardlist .pb-2 a",
-          );
-
-          for (const element of comicElements) {
-            const img = element.querySelector("img");
-            const titleElement = element.querySelector("h3");
-
-            if (img && titleElement) {
-              const imgSrc = img.attributes["src"];
-              // Extract 'url' parameter from imgSrc without using URL constructor
-              let thumbnailUrl = imgSrc;
-              if (imgSrc.includes("url=")) {
-                const urlParam = imgSrc.match(/[?&]url=([^&]*)/);
-                if (urlParam && urlParam[1]) {
-                  thumbnailUrl = decodeURIComponent(urlParam[1]);
-                }
-              }
-
-              const comic = new Comic({
-                id: element.attributes["href"]
-                  .substring("/manga/".length)
-                  .replace(/\/$/, "")
-                  .trim(),
-                title: titleElement.text.trim(),
-                cover: thumbnailUrl,
-                url: element.attributes["href"],
-              });
-              comics.push(comic);
-            }
-          }
-
-          // Check for next page
-          const nextPageElement = doc.querySelector(
-            'a[aria-label="下一頁"] button, a[aria-label="NEXT"] button',
-          );
-          const hasNextPage = !!nextPageElement;
-
-          return {
-            comics: comics,
-            maxPage: hasNextPage ? page + 1 : 1,
-          };
+        const baseUrl = this.getBaseUrl();
+        const res = await Network.get(`${baseUrl}/newss/page/${page}`, {
+          headers: {
+            Referer: `${baseUrl}/`,
+            "User-Agent": this.ua,
+          },
         });
+
+        if (res.status !== 200) {
+          throw new Error(`Failed to fetch latest updates: ${res.status}`);
+        }
+
+        const html = res.body;
+        const doc = new HtmlDocument(html);
+
+        const comics = [];
+        const comicElements = doc.querySelectorAll(
+          ".container > .cardlist .pb-2 a",
+        );
+
+        for (const element of comicElements) {
+          const img = element.querySelector("img");
+          const titleElement = element.querySelector("h3");
+
+          if (img && titleElement) {
+            const imgSrc = img.attributes["src"];
+            // Extract 'url' parameter from imgSrc without using URL constructor
+            let thumbnailUrl = imgSrc;
+            if (imgSrc.includes("url=")) {
+              const urlParam = imgSrc.match(/[?&]url=([^&]*)/);
+              if (urlParam && urlParam[1]) {
+                thumbnailUrl = decodeURIComponent(urlParam[1]);
+              }
+            }
+
+            const comic = new Comic({
+              id: element.attributes["href"]
+                .substring("/manga/".length)
+                .replace(/\/$/, "")
+                .trim(),
+              title: titleElement.text.trim(),
+              cover: thumbnailUrl,
+              url: element.attributes["href"],
+            });
+            comics.push(comic);
+          }
+        }
+
+        // Check for next page
+        const nextPageElement = doc.querySelector(
+          'a[aria-label="下一頁"] button, a[aria-label="NEXT"] button',
+        );
+        const hasNextPage = !!nextPageElement;
+
+        return {
+          comics: comics,
+          maxPage: hasNextPage ? page + 1 : 1,
+        };
       },
     },
   ];
@@ -844,63 +700,56 @@ class Goda extends ComicSource {
     },
 
     loadEp: async (comicId, epId) => {
-      const cacheKey = `comic.${comicId}.ep.${epId}`;
-      return this._withCache(cacheKey, async () => {
-        const baseUrl = this.getBaseUrl();
+      const baseUrl = this.getBaseUrl();
 
-        let mangaId;
-        let chapterId;
-        if (epId.includes("/")) {
-          // Extract chapter ID from epId (format is chapterId/mangaId)
-          [chapterId, mangaId] = epId.split("/");
-        } else {
-          mangaId = Goda.mangaId[comicId];
-          chapterId = epId;
-        }
+      let mangaId;
+      let chapterId;
+      if (epId.includes("/")) {
+        // Extract chapter ID from epId (format is chapterId/mangaId)
+        [chapterId, mangaId] = epId.split("/");
+      } else {
+        mangaId = Goda.mangaId[comicId];
+        chapterId = epId;
+      }
 
-        // Use the API to get chapter info
-        const apiRes = await fetch(
-          `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}&t=${Date.now()}`,
-          {
-            headers: {
-              Referer: `${baseUrl}/`,
-              Origin: `${baseUrl}/`,
-              Connection: "keep-alive",
-              "Sec-GPC": 1,
-              "User-Agent": this.ua,
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-            },
+      // Use the API to get chapter info
+      const apiRes = await fetch(
+        `https://api-get-v3.mgsearcher.com/api/chapter/getinfo?m=${mangaId}&c=${chapterId}&t=${Date.now()}`,
+        {
+          headers: {
+            Referer: `${baseUrl}/`,
+            Origin: `${baseUrl}/`,
+            Connection: "keep-alive",
+            "Sec-GPC": 1,
+            "User-Agent": this.ua,
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
           },
-        );
+        },
+      );
 
-        const jsonData = await apiRes.json();
+      const jsonData = await apiRes.json();
 
-        if (
-          !jsonData.data ||
-          !jsonData.data.info ||
-          !jsonData.data.info.images
-        ) {
-          throw new Error("Invalid API response format");
-        }
+      if (!jsonData.data || !jsonData.data.info || !jsonData.data.info.images) {
+        throw new Error("Invalid API response format");
+      }
 
-        // Extract image URLs from the JSON response
-        const imageList = jsonData.data.info.images.images;
-        const images = [];
+      // Extract image URLs from the JSON response
+      const imageList = jsonData.data.info.images.images;
+      const images = [];
 
-        for (let i = 0; i < imageList.length; i++) {
-          let imageUrl = imageList[i].url;
-          if (imageUrl) {
-            // If the image URL is a relative path, prepend the base API URL
-            if (imageUrl.startsWith("/")) {
-              imageUrl = "https://t40-1-4.g-mh.online" + imageUrl;
-            }
-            images.push(imageUrl);
+      for (let i = 0; i < imageList.length; i++) {
+        let imageUrl = imageList[i].url;
+        if (imageUrl) {
+          // If the image URL is a relative path, prepend the base API URL
+          if (imageUrl.startsWith("/")) {
+            imageUrl = "https://t40-1-4.g-mh.online" + imageUrl;
           }
+          images.push(imageUrl);
         }
+      }
 
-        return { images };
-      });
+      return { images };
     },
 
     onThumbnailLoad: (url) => {
