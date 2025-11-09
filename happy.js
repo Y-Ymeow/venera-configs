@@ -2090,7 +2090,7 @@ class HappyComicSource extends ComicSource {
 
       var res = await fetch(
         "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-          chapterCode +
+          chapterId +
           "&v=v3.1818134",
         {
           headers: {
