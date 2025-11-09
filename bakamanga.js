@@ -2,7 +2,7 @@
 class Bakamanga extends ComicSource {
   name = "巴卡漫画";
   key = "bakamanga";
-  version = "1.3.5";
+  version = "1.3.6";
   minAppVersion = "1.6.0";
 
   url =
@@ -53,7 +53,7 @@ class Bakamanga extends ComicSource {
       title: "巴卡漫画",
       type: "multiPartPage",
       load: async () => {
-        const popularUrl = `${this.baseUrl}/manhwa/`;
+        const popularUrl = `${this.baseUrl}/`;
 
         try {
           const popularRes = await Network.get(popularUrl, {
@@ -79,28 +79,30 @@ class Bakamanga extends ComicSource {
             },
           ];
         } catch (e) {
+          console.error(e);
           let randomList = [
             "教授的課後輔導",
             "燃烧",
             "足球型男脱单指南",
             "顶加套房的春天",
+            "渴望占有她",
           ];
-          await Network.get(
+          const checkUrl =
             popularUrl +
-              randomList[Math.floor(Math.random() * randomList.length)],
-            {
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
-                Connection: "keep-alive",
-                "Accept-Encoding": "gzip, deflate, br, zstd",
-                Priority: "u=0, i",
-                "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-                Accept:
-                  "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              },
+            randomList[Math.floor(Math.random() * randomList.length)];
+          await Network.deleteCookies(checkUrl);
+          await Network.get(checkUrl, {
+            headers: {
+              "User-Agent":
+                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+              Connection: "keep-alive",
+              "Accept-Encoding": "gzip, deflate, br, zstd",
+              Priority: "u=0, i",
+              "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+              Accept:
+                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             },
-          );
+          });
         }
 
         return [];
@@ -281,9 +283,20 @@ class Bakamanga extends ComicSource {
 
         if (selectedIndex != null) {
           const selectedDomain = domains[selectedIndex].split(" ")[0];
+          Network.deleteCookies(this.baseUrl);
           this.saveData(this.#domain_key, selectedDomain);
           UI.showMessage(`已切换域名至: ${selectedDomain}`);
         }
+      },
+    },
+    clearCookie: {
+      title: "清除Cookie",
+      description: "清除漫画网站的Cookie, 用于解决403 Forbidden等问题",
+      type: "callback",
+      buttonText: "清除",
+      callback: () => {
+        Network.deleteCookies(this.baseUrl);
+        UI.showMessage("已清除Cookie");
       },
     },
   };

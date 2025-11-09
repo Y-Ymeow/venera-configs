@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.7";
+  version = "1.0.8";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -103,6 +103,11 @@ class HappyComicSource extends ComicSource {
           },
         );
         if (res.status !== 200) {
+          Network.deleteCookies(
+            "https://m.happymh.com/apis/c/index?pn=" +
+              page +
+              "&series_status=-1&order=last_date",
+          );
           throw new Error("Explore failed: " + res.status);
         }
 
@@ -2083,8 +2088,10 @@ class HappyComicSource extends ComicSource {
       // Get chapter id from epId
       var chapterId = epId.split("/").pop().split(".")[0];
 
-      var res = await Network.get(
-        "https://m.happymh.com/apis/c/chapter/" + chapterId + "?_update=true",
+      var res = await fetch(
+        "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
+          chapterCode +
+          "&v=v3.1818134",
         {
           headers: {
             "User-Agent":
@@ -2139,17 +2146,18 @@ class HappyComicSource extends ComicSource {
 
   settings = {
     ua: {
-      title: "User Agent",
+      title: "User-Agent",
       type: "input",
       default:
-        "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
-      description: "User agent for requests. Leave empty to use default.",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     },
-    launchBrowser: {
-      title: "Launch Browser",
+    clearCookie: {
+      title: "清除Cookie",
       type: "callback",
+      buttonText: "清除",
       callback: () => {
-        UI.launchUrl("https://m.happymh.com");
+        Network.deleteCookies("https://m.happymh.com/");
+        UI.showMessage("已清除Cookie");
       },
     },
     enableCache: {
