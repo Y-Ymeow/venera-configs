@@ -16,6 +16,10 @@ Configuration file repository for venera
 - 巴卡漫画
 - Manga Park
 
+# BUG问题
+
+巴卡漫画还有嗨皮漫画的Cloudflare验证有问题，匹配不到，嗨皮打开验证页面后莫名其妙又能用了，巴卡依旧是403，解决不了
+
 ## 通过 JSON 自动添加漫画源
 
 可通过 `index2.json` 파일自动添加漫画源，无需手动配置。直接使用以下原始链接导入：
