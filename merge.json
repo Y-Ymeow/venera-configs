@@ -57,7 +57,7 @@
     "name": "嗨皮漫画",
     "fileName": "happy.js",
     "key": "happy",
-    "version": "1.0.8"
+    "version": "1.0.9"
   },
   {
     "name": "hitomi.la",
@@ -144,6 +144,12 @@
     "fileName": "picacg.js",
     "key": "picacg",
     "version": "1.0.5"
+  },
+  {
+    "name": "如漫画",
+    "fileName": "rumanhua.js",
+    "key": "rumanhua",
+    "version": "1.1.0"
   },
   {
     "name": "少年ジャンプ＋",

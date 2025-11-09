@@ -2,8 +2,6 @@
 
 Configuration file repository for venera
 
-## 已包含源仓库漫画源
-
 ## 此为此仓库新增
 - 漫蛙
 - Manhwa18.cc
@@ -15,8 +13,11 @@ Configuration file repository for venera
 - 嗨피漫画
 - 巴卡漫画
 - Manga Park
+- 如漫画
 
-# BUG问题
+## BUG问题
+
+此源都为AI编写，我只是修bug还有优化一些AI写的代码以及调试，基本能用我就没多管，所以有的问题我也不知道怎么解决。
 
 巴卡漫画还有嗨皮漫画的Cloudflare验证有问题，匹配不到，嗨皮打开验证页面后莫名其妙又能用了，巴卡依旧是403，解决不了
 
