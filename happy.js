@@ -2086,11 +2086,11 @@ class HappyComicSource extends ComicSource {
 
     loadEp: async (comicId, epId) => {
       // Get chapter id from epId
-      var chapterId = epId.split("/").pop().split(".")[0];
+      var chapterId = epId;
 
       var res = await fetch(
         "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-          chapterCode +
+          chapterId +
           "&v=v3.1818134",
         {
           headers: {
