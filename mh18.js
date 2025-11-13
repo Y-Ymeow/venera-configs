@@ -1,48 +1,30 @@
 /** @type {import('./_venera_.js')} */
-class Goda extends ComicSource {
+class MH18 extends ComicSource {
   // Note: The fields which are marked as [Optional] should be removed if not used
 
   // name of the source
-  name = "GoDa漫画"
+  name = "18漫画"
 
   // unique id of the source
-  key = "goda"
+  key = "mh18"
 
   version = "1.0.0"
 
   minAppVersion = "1.4.0"
 
   // update url
-  url = "https://git.nyne.dev/nyne/venera-configs/raw/branch/main/goda.js"
+  url = "https://git.nyne.dev/nyne/venera-configs/raw/branch/main/mh18.js"
 
   settings = {
     domains: {
       title: "域名",
       type: "input",
-      default: "godamh.com"
-    },
-    api: {
-      title: "API域名",
-      type: "input",
-      default: "api-get-v3.mgsearcher.com"
-    },
-    image: {
-      title: "图片域名",
-      type: "input",
-      default: "t40-1-4.g-mh.online"
+      default: "18mh.org"
     }
   }
 
   get baseUrl() {
     return `https://${this.loadSetting("domains")}`;
-  }
-
-  get apiUrl() {
-    return `https://${this.loadSetting("api")}/api`;
-  }
-
-  get imageUrl() {
-    return `https://${this.loadSetting("image")}`;
   }
 
   get headers() {
@@ -116,91 +98,89 @@ class Goda extends ComicSource {
         type: "fixed",
         categories: [
           "全部",
-          "韩漫",
-          "热门漫画",
-          "国漫",
-          "其他",
+          "韓漫",
+          "真人寫真",
           "日漫",
-          "欧美"
+          "AI寫真",
+          "熱門漫畫"
         ],
         itemType: "category",
         categoryParams: [
           "/manga",
-          "/manga-genre/kr",
-          "/manga-genre/hots",
-          "/manga-genre/cn",
-          "/manga-genre/qita",
-          "/manga-genre/jp",
-          "/manga-genre/ou-mei"
+          "/manga-genre/hanman",
+          "/manga-genre/zhenrenxiezhen",
+          "/manga-genre/riman",
+          "/manga-genre/aixiezhen",
+          "/manga-genre/hots"
         ],
       },
       {
         name: "标签",
         type: "fixed",
         categories: [
-          "复仇",
-          "古风",
-          "奇幻",
-          "逆袭",
-          "异能",
-          "宅向",
-          "穿越",
-          "热血",
-          "纯爱",
-          "系统",
-          "重生",
-          "冒险",
-          "灵异",
-          "大女主",
-          "剧情",
-          "恋爱",
-          "玄幻",
+          "多人",
+          "慾望",
+          "正妹",
+          "同居",
+          "女學生",
+          "劇情",
+          "偷情",
+          "校园",
+          "逆襲",
+          "办公室",
+          "誘惑",
+          "反转",
+          "熟女",
+          "人妻",
+          "初戀",
+          "少妇",
+          "刺激",
+          "女大学生",
+          "治疗",
+          "超能力",
+          "浪漫校园",
+          "戏剧",
+          "学姐",
+          "大学生",
+          "泳衣",
+          "暧昧",
+          "写真",
           "女神",
-          "科幻",
-          "魔幻",
-          "推理",
-          "猎奇",
-          "治愈",
-          "都市",
-          "异形",
-          "青春",
-          "末日",
-          "悬疑",
-          "修仙",
-          "战斗"
+          "大尺度",
+          "纯情警察"
         ],
         itemType: "category",
         categoryParams: [
-          "/manga-tag/fuchou",
-          "/manga-tag/gufeng",
-          "/manga-tag/qihuan",
-          "/manga-tag/nixi",
-          "/manga-tag/yineng",
-          "/manga-tag/zhaixiang",
-          "/manga-tag/chuanyue",
-          "/manga-tag/rexue",
-          "/manga-tag/chunai",
-          "/manga-tag/xitong",
-          "/manga-tag/zhongsheng",
-          "/manga-tag/maoxian",
-          "/manga-tag/lingyi",
-          "/manga-tag/danvzhu",
+          "/manga-tag/duoren",
+          "/manga-tag/yuwang",
+          "/manga-tag/zhengmei",
+          "/manga-tag/tongju",
+          "/manga-tag/nxuesheng",
           "/manga-tag/juqing",
-          "/manga-tag/lianai",
-          "/manga-tag/xuanhuan",
-          "/manga-tag/nvshen",
-          "/manga-tag/kehuan",
-          "/manga-tag/mohuan",
-          "/manga-tag/tuili",
-          "/manga-tag/lieqi",
-          "/manga-tag/zhiyu",
-          "/manga-tag/doushi",
-          "/manga-tag/yixing",
-          "/manga-tag/qingchun",
-          "/manga-tag/mori",
-          "/manga-tag/xuanyi",
-          "/manga-tag/xiuxian",
-          "/manga-tag/zhandou"
+          "/manga-tag/touqing",
+          "/manga-tag/xiaoyuan",
+          "/manga-tag/nixi",
+          "/manga-tag/bangongshi",
+          "/manga-tag/youhuo",
+          "/manga-tag/fanzhuan",
+          "/manga-tag/shun",
+          "/manga-tag/renqi",
+          "/manga-tag/chulian",
+          "/manga-tag/shaofu",
+          "/manga-tag/ciji",
+          "/manga-tag/ndaxuesheng",
+          "/manga-tag/zhiliao",
+          "/manga-tag/chaonengli",
+          "/manga-tag/langmanxiaoyuan",
+          "/manga-tag/xiju",
+          "/manga-tag/xuejie",
+          "/manga-tag/daxuesheng",
+          "/manga-tag/yongyi",
+          "/manga-tag/aimei",
+          "/manga-tag/xiezhen",
+          "/manga-tag/nshen",
+          "/manga-tag/dachidu",
+          "/manga-tag/chunqingjingcha"
         ],
       }
     ],
@@ -219,7 +199,7 @@ class Goda extends ComicSource {
       let maxPage = null;
       try {
         maxPage = parseInt(document.querySelectorAll("button.text-small").pop().text.replaceAll("\n", "").replaceAll(" ", ""));
-      } catch(_) {
+      } catch (_) {
         maxPage = 1;
       }
       return {
@@ -240,7 +220,7 @@ class Goda extends ComicSource {
       let maxPage = null;
       try {
         maxPage = parseInt(document.querySelectorAll("button.text-small").pop().text.replaceAll("\n", "").replaceAll(" ", ""));
-      } catch(_) {
+      } catch (_) {
         maxPage = 1;
       }
       return {
@@ -260,7 +240,10 @@ class Goda extends ComicSource {
       }
     },
     loadInfo: async (id) => {
-      const res = await Network.get(this.baseUrl + id);
+      if (!id.startsWith("http")) {
+        id = this.baseUrl + id;
+      }
+      const res = await Network.get(id);
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }
@@ -288,11 +271,12 @@ class Goda extends ComicSource {
         tags["标签"].push(tag.text.replace("\n", "").replaceAll(" ", "").replace("#", ""));
       }
       const mangaId = document.querySelector("#mangachapters").attributes["data-mid"];
-      const jsonRes = await Network.get(`${this.apiUrl}/manga/get?mid=${mangaId}&mode=all&t=${Date.now()}`, this.headers);
-      const jsonData = JSON.parse(jsonRes.body);
+      const chapterRes = await Network.get(`${this.baseUrl}/manga/get?mid=${mangaId}&mode=all&t=${Date.now()}`, this.headers);
+      const chapterDoc = new HtmlDocument(chapterRes.body);
       const chapters = {};
-      for (let ch of jsonData["data"]["chapters"]) {
-        chapters[`${mangaId}@${ch["id"]}`] = ch["attributes"]["title"];
+      for (let ch of chapterDoc.querySelectorAll(".chapteritem")) {
+        const info = ch.querySelector("a");
+        chapters[`${info.attributes["data-ms"]}@${info.attributes["data-cs"]}`] = ch.querySelector(".chaptertitle").text;
       }
       const recommend = [];
       for (let item of document.querySelectorAll("div.cardlist > div.pb-2")) {
@@ -314,14 +298,14 @@ class Goda extends ComicSource {
 
     loadEp: async (comicId, epId) => {
       const ids = epId.split("@");
-      const res = await Network.get(`${this.apiUrl}/chapter/getinfo?m=${ids[0]}&c=${ids[1]}`, this.headers);
+      const res = await Network.get(`${this.baseUrl}/chapter/getcontent?m=${ids[0]}&c=${ids[1]}`, this.headers);
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }
-      const jsonData = JSON.parse(res.body);
+      const document = new HtmlDocument(res.body);
       const images = [];
-      for (let i of jsonData["data"]["info"]["images"]["images"]) {
-        images.push(this.imageUrl + i["url"]);
+      for (let i of document.querySelector("#chapcontent").querySelectorAll("img")) {
+        images.push(i.attributes["data-src"] ? i.attributes["data-src"] : i.attributes["src"]);
       }
       return { images };
     },
