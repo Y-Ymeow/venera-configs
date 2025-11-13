@@ -6,7 +6,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.1.2";
+  version = "1.1.4";
 
   minAppVersion = "1.4.0";
 
@@ -531,11 +531,14 @@ class ManhwaRawComicSource extends ComicSource {
      */
     loadEp: async (comicId, epId) => {
       let chapterId = epId || comicId; // Use epId if provided, otherwise use comicId
-      let res = await Network.get(this.generateMangaUrl(comicId, chapterId), {
-        headers: {
-          "User-Agent": this.ua,
+      let res = await Network.get(
+        this.generateMangaUrl(comicId, chapterId) + "?style=list",
+        {
+          headers: {
+            "User-Agent": this.ua,
+          },
         },
-      });
+      );
       if (res.status !== 200) {
         throw `Invalid status code: ${res.status}`;
       }

@@ -9,3 +9,6 @@ download-*
 gen-map.js
 deobfuscation_analysis.js
 verify_manhuayu5.js
+decode.js
+package-lock.json
+package.json
