@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.0.9";
+  version = "1.1.0";
 
   minAppVersion = "1.4.0";
 
@@ -809,12 +809,12 @@ class WebtoonComicSource extends ComicSource {
 
       const document = new HtmlDocument(res.body);
       const comicElements = document.querySelectorAll(
-        ".search_comic_list li a",
+        ".webtoon_list li a",
       );
 
       const comics = [];
       for (const element of comicElements) {
-        const titleElement = element.querySelector(".subj");
+        const titleElement = element.querySelector(".title");
         const coverElement = element.querySelector("img");
         const authorElement = element.querySelector(".author");
 
@@ -843,7 +843,7 @@ class WebtoonComicSource extends ComicSource {
       }
 
       // Check if there's a next page
-      const hasNextPage = document.querySelector("a.pg_next") !== null;
+      const hasNextPage = document.querySelector("a.next") !== null;
       const maxPage = hasNextPage ? page + 1 : page;
 
       document.dispose();
