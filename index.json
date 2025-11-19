@@ -9,7 +9,7 @@
         "name": "Komiic",
         "fileName": "komiic.js",
         "key": "Komiic",
-        "version": "1.0.2"
+        "version": "1.0.3"
     },
     {
         "name": "包子漫画",
@@ -96,7 +96,7 @@
       "name": "漫画柜",
       "fileName": "manhuagui.js",
       "key": "ManHuaGui",
-      "version": "1.2.0"
+      "version": "1.2.1"
     },
     {
         "name": "漫蛙吧",
@@ -145,5 +145,14 @@
         "fileName": "mh18.js",
         "key": "mh18",
         "version": "1.0.0"
+<<<<<<< HEAD
+=======
+    },
+    {
+        "name": "漫小肆",
+        "fileName": "mxs.js",
+        "key": "mxs",
+        "version": "1.0.0"
+>>>>>>> a184ea975d9e19e9f940227ef22dcd96f2e91a61
     }
 ]
