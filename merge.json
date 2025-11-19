@@ -3,13 +3,13 @@
     "name": "Komiic",
     "fileName": "komiic.js",
     "key": "Komiic",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   {
     "name": "漫画柜",
     "fileName": "manhuagui.js",
     "key": "ManHuaGui",
-    "version": "1.2.0"
+    "version": "1.2.1"
   },
   {
     "name": "巴卡漫画",
@@ -149,6 +149,12 @@
     "name": "18漫画",
     "fileName": "mh18.js",
     "key": "mh18",
+    "version": "1.0.0"
+  },
+  {
+    "name": "漫小肆",
+    "fileName": "mxs.js",
+    "key": "mxs",
     "version": "1.0.0"
   },
   {
