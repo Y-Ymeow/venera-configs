@@ -7,7 +7,7 @@ class WebtoonComicSource extends ComicSource {
   // unique id of the source
   key = "webtoon";
 
-  version = "1.1.0";
+  version = "1.1.1";
 
   minAppVersion = "1.4.0";
 
@@ -831,7 +831,7 @@ class WebtoonComicSource extends ComicSource {
 
           comics.push(
             new Comic({
-              id: fullUrl, // Use the full URL as the ID
+              id: this.extractWebtoonPathAndId(fullUrl), // Use the full URL as the ID
               title: title,
               subTitle: author,
               cover: cover,
