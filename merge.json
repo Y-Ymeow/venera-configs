@@ -116,6 +116,12 @@
     "version": "1.0.6"
   },
   {
+    "name": "漫画人",
+    "fileName": "manhuaren.js",
+    "key": "manhuaren",
+    "version": "1.0.0"
+  },
+  {
     "name": "Manhwa 18 CC",
     "fileName": "manhwa18cc.js",
     "key": "manhwa18cc",
@@ -191,7 +197,7 @@
     "name": "紳士漫畫",
     "fileName": "wnacg.js",
     "key": "wnacg",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "紳士漫畫漫畫源, 不能使用時請嘗試更換URL"
   },
   {
