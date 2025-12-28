@@ -39,7 +39,7 @@
     "name": "嗨皮漫画",
     "fileName": "happy.js",
     "key": "happy",
-    "version": "1.0.9"
+    "version": "1.1.0"
   },
   {
     "name": "Manga District",
@@ -51,18 +51,24 @@
     "name": "Manga Park",
     "fileName": "mangapark.js",
     "key": "mangapark",
-    "version": "1.0.6"
+    "version": "1.0.7"
   },
   {
     "name": "巴卡漫画",
     "fileName": "bakamanga.js",
     "key": "bakamanga",
-    "version": "1.3.6"
+    "version": "1.3.7"
   },
   {
     "name": "如漫画",
     "fileName": "rumanhua.js",
     "key": "rumanhua",
     "version": "1.1.0"
+  },
+  {
+    "name": "Manhwa Raw Net",
+    "fileName": "manhwa_raw_net.js",
+    "key": "manhwa_raw_net",
+    "version": "1.0.0"
   }
 ]

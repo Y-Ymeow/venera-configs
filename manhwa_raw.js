@@ -6,7 +6,7 @@ class ManhwaRawComicSource extends ComicSource {
   // unique id of the source
   key = "manhwa_raw";
 
-  version = "1.1.4";
+  version = "1.1.5";
 
   minAppVersion = "1.4.0";
 
@@ -568,25 +568,11 @@ class ManhwaRawComicSource extends ComicSource {
      * @returns {ImageLoadingConfig | Promise<ImageLoadingConfig>}
      */
     onImageLoad: (url, comicId, epId) => {
-      const mainDomainCookies = Network.getCookies(this.domain);
-
-      let uniqueCookies = mainDomainCookies.reduce((acc, cookie) => {
-        if (!acc.some((c) => c.name === cookie.name)) {
-          acc.push(cookie);
-        }
-        return acc;
-      }, []);
-
-      let cookieString = uniqueCookies
-        .map((cookie) => `${cookie.name}=${cookie.value}`)
-        .join("; ");
-
       let realUrl = url.replace("awi.", "");
 
       return {
         realUrl,
         headers: {
-          Cookie: cookieString,
           Referer: this.domain + "/",
           "Sec-GPC": "1",
           "User-Agent": this.ua,
@@ -603,24 +589,10 @@ class ManhwaRawComicSource extends ComicSource {
      * They are not supported for thumbnails.
      */
     onThumbnailLoad: (url) => {
-      const mainDomainCookies = Network.getCookies(this.domain);
-
-      let uniqueCookies = mainDomainCookies.reduce((acc, cookie) => {
-        if (!acc.some((c) => c.name === cookie.name)) {
-          acc.push(cookie);
-        }
-        return acc;
-      }, []);
-
-      let cookieString = uniqueCookies
-        .map((cookie) => `${cookie.name}=${cookie.value}`)
-        .join("; ");
-
       let realUrl = url.replace("awi.", "");
       return {
         realUrl,
         headers: {
-          Cookie: cookieString,
           Referer: this.domain + "/",
           "Sec-GPC": "1",
           "User-Agent": this.ua,
@@ -651,10 +623,67 @@ class ManhwaRawComicSource extends ComicSource {
       type: "input",
       default: "1",
     },
+    setCookie: {
+      title: "设置Cookie",
+      description: "设置漫画网站的Cookie, 用于解决需要登录才能访问的内容",
+      type: "callback",
+      buttonText: "设置",
+      callback: async () => {
+        try {
+          const cookieString = await UI.showInputDialog(
+            "请输入Cookie字符串",
+            (input) => {
+              if (!input || input.trim().length === 0) {
+                return "Cookie字符串不能为空";
+              }
+              return null; // Return null if validation passes
+            }
+          );
+
+          if (cookieString !== null) {
+            // Parse cookie string into individual cookies
+            const cookies = cookieString.split(';').map(cookie => {
+              const [nameValue] = cookie.split(';'); // Only take the name=value part
+              const [name, value] = nameValue.trim().split('=');
+
+              // Sanitize the name and value to remove problematic content
+              const sanitizedName = name ? name.trim().replace(/\s/g, '') : '';
+              let sanitizedValue = value ? decodeURIComponent(value.trim()) : "";
+
+              // Remove [object Promise] if present in the value
+              sanitizedValue = sanitizedValue.replace(/\[object Promise\]/g, 'object');
+
+              return {
+                name: sanitizedName,
+                value: sanitizedValue,
+                domain: this.domain.replace('https://', '')
+              };
+            }).filter(cookie => cookie.name && cookie.value);
+
+            // Set the cookies using Network.setCookies
+            Network.setCookies(this.domain, cookies);
+            UI.showMessage("Cookie设置成功");
+          }
+        } catch (error) {
+          console.error("设置Cookie时出错:", error);
+          UI.showMessage("设置Cookie失败: " + error.message);
+        }
+      },
+    },
+    clearCookie: {
+      title: "清除Cookie",
+      description: "清除漫画网站的Cookie, 用于解决403 Forbidden等问题",
+      type: "callback",
+      buttonText: "清除",
+      callback: () => {
+        Network.deleteCookies(this.domain);
+        UI.showMessage("已清除Cookie");
+      },
+    },
     clearCache: {
       title: "清除缓存",
-      type: "button",
-      buttonText: "callback",
+      type: "callback",
+      buttonText: "清除缓存",
       callback: () => {
         this.deleteData("cache_timestamps");
         this.deleteData("cache_data");

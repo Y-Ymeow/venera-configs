@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.0.9";
+  version = "1.1.0";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -92,9 +92,6 @@ class HappyComicSource extends ComicSource {
             "&series_status=-1&order=last_date",
           {
             headers: {
-              "User-Agent":
-                this.loadSetting("ua") ||
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
               Referer: "https://m.happymh.com/latest",
               Priority: "u=4",
               "Sec-GPC": 1,
@@ -1878,9 +1875,6 @@ class HappyComicSource extends ComicSource {
 
       var res = await fetch(url, {
         headers: {
-          "User-Agent":
-            this.loadSetting("ua") ||
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
           Referer: "https://m.happymh.com/latest",
         },
       });
@@ -1947,13 +1941,8 @@ class HappyComicSource extends ComicSource {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             Referer: "https://m.happymh.com/sssearch",
-            "User-Agent":
-              this.loadSetting("ua") ||
-              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
           },
-          body: "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
-        },
-      );
+        },"searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",);
       if (res.status !== 200) {
         throw new Error("Search failed: " + res.status);
       }
@@ -1977,9 +1966,6 @@ class HappyComicSource extends ComicSource {
       return this._withCache(`comic_${id}.info`, async () => {
         var res = await Network.get("https://m.happymh.com/manga/" + id, {
           headers: {
-            "User-Agent":
-              this.loadSetting("ua") ||
-              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
             Referer: "https://m.happymh.com/latest",
           },
         });
@@ -2028,9 +2014,6 @@ class HappyComicSource extends ComicSource {
               "&v=v2.1818134",
             {
               headers: {
-                "User-Agent":
-                  this.loadSetting("ua") ||
-                  "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
                 Referer: "https://m.happymh.com" + id,
                 "X-Requested-With": "XMLHttpRequest",
               },
@@ -2094,9 +2077,6 @@ class HappyComicSource extends ComicSource {
           "&v=v3.1818134",
         {
           headers: {
-            "User-Agent":
-              this.loadSetting("ua") ||
-              "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
             Referer: "https://m.happymh.com" + epId,
             "X-Requested-With": "XMLHttpRequest",
           },
@@ -2126,9 +2106,6 @@ class HappyComicSource extends ComicSource {
       return {
         headers: {
           Referer: "https://m.happymh.com/",
-          "User-Agent":
-            this.loadSetting("ua") ||
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1",
         },
       };
     }.bind(this),
@@ -2145,12 +2122,6 @@ class HappyComicSource extends ComicSource {
   }
 
   settings = {
-    ua: {
-      title: "User-Agent",
-      type: "input",
-      default:
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    },
     clearCookie: {
       title: "清除Cookie",
       type: "callback",

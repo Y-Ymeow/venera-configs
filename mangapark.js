@@ -2,7 +2,7 @@
 class MangaPark extends ComicSource {
   name = "MangaPark";
   key = "mangapark";
-  version = "1.0.6";
+  version = "1.0.7";
   minAppVersion = "1.4.0";
 
   url =
@@ -355,7 +355,16 @@ class MangaPark extends ComicSource {
         { value: "mangapark.net", text: "mangapark.net" },
         { value: "mangapark.com", text: "mangapark.com" },
         { value: "mangapark.org", text: "mangapark.org" },
+        { value: "mangapark.me", text: "mangapark.me" },
+        { value: "mangapark.io", text: "mangapark.io" },
+        { value: "mangapark.to", text: "mangapark.to" },
         { value: "comicpark.org", text: "comicpark.org" },
+        { value: "comicpark.to", text: "comicpark.to" },
+        { value: "readpark.org", text: "readpark.org" },
+        { value: "readpark.net", text: "readpark.net" },
+        { value: "parkmanga.com", text: "parkmanga.com" },
+        { value: "parkmanga.net", text: "parkmanga.net" },
+        { value: "parkmanga.org", text: "parkmanga.org" },
         { value: "mpark.to", text: "mpark.to" },
       ],
       default: "mangapark.net",

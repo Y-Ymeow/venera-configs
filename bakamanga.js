@@ -2,7 +2,7 @@
 class Bakamanga extends ComicSource {
   name = "巴卡漫画";
   key = "bakamanga";
-  version = "1.3.6";
+  version = "1.3.7";
   minAppVersion = "1.6.0";
 
   url =
@@ -55,57 +55,17 @@ class Bakamanga extends ComicSource {
       load: async () => {
         const popularUrl = `${this.baseUrl}/`;
 
-        try {
-          const popularRes = await Network.get(popularUrl, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
-              Connection: "keep-alive",
-              "Accept-Encoding": "gzip, deflate, br, zstd",
-              Priority: "u=0, i",
-              "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-              Accept:
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-          });
-          const popularDoc = new HtmlDocument(popularRes.body);
-          const popularComics = popularDoc
-            .querySelectorAll("div.page-item-detail")
-            .map((e) => this.#parseComic(e));
-          return [
-            {
-              title: "最新更新",
-              comics: popularComics,
-            },
-          ];
-        } catch (e) {
-          console.error(e);
-          let randomList = [
-            "教授的課後輔導",
-            "燃烧",
-            "足球型男脱单指南",
-            "顶加套房的春天",
-            "渴望占有她",
-          ];
-          const checkUrl =
-            popularUrl +
-            randomList[Math.floor(Math.random() * randomList.length)];
-          await Network.deleteCookies(checkUrl);
-          await Network.get(checkUrl, {
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
-              Connection: "keep-alive",
-              "Accept-Encoding": "gzip, deflate, br, zstd",
-              Priority: "u=0, i",
-              "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-              Accept:
-                "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-          });
-        }
-
-        return [];
+        const popularRes = await Network.get(popularUrl);
+        const popularDoc = new HtmlDocument(popularRes.body);
+        const popularComics = popularDoc
+          .querySelectorAll("div.page-item-detail")
+          .map((e) => this.#parseComic(e));
+        return [
+          {
+            title: "最新更新",
+            comics: popularComics,
+          },
+        ];
       },
     },
   ];
@@ -171,7 +131,7 @@ class Bakamanga extends ComicSource {
           const ajaxUrl = `${this.baseUrl}/wp-admin/admin-ajax.php`;
           const ajaxRes = await Network.post(
             ajaxUrl,
-            { "X-Requested-With": "XMLHttpRequest" },
+            {},
             `action=manga_get_chapters&manga=${mangaId}`,
           );
           const ajaxDoc = new HtmlDocument(ajaxRes.body);
@@ -225,16 +185,6 @@ class Bakamanga extends ComicSource {
         url,
         headers: {
           Referer: `${this.baseUrl}`,
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-          Accept:
-            "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-          "Accept-Encoding": "gzip, deflate, br, zstd",
-          "Sec-Fetch-Dest": "image",
-          "Sec-Fetch-Mode": "cors",
-          "Sec-Fetch-Site": "same-origin",
-          Pragma: "no-cache",
-          "Cache-Control": "no-cache",
         },
       };
     },
