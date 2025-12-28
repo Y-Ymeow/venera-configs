@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.1.0";
+  version = "1.1.1";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -1942,11 +1942,11 @@ class HappyComicSource extends ComicSource {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             Referer: "https://m.happymh.com/sssearch",
           },
-        },"searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",);
+        },"searchkey=" + encodeURIComponent(keyword) + "&v=v2.13&s=web&d=",);
       if (res.status !== 200) {
         throw new Error("Search failed: " + res.status);
       }
-      var data = await res.json();
+      var data = JSON.parse(res.body);
       var comics = [];
       for (var i = 0; i < data.data.items.length; i++) {
         var item = data.data.items[i];
