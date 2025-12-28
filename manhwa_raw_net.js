@@ -1,7 +1,7 @@
 class ManhwaRawNet extends ComicSource {
     name = "Manhwa Raw Net"
     key = "manhwa_raw_net"
-    version = "1.0.0"
+    version = "1.0.1"
     minAppVersion = "1.6.0"
     url =
       "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa_raw_net.js";
@@ -131,7 +131,7 @@ class ManhwaRawNet extends ComicSource {
             const id = url.replace(this.baseUrl, '').replace('/manga/', '').replace('/', '');
 
             return new Comic({
-                id: id,
+                id: 'mhn_' + id,
                 title: title,
                 cover: thumbnail,
                 description: latestChapter, // Using latest chapter as description
@@ -368,7 +368,7 @@ class ManhwaRawNet extends ComicSource {
             const id = url.replace(this.baseUrl, '').replace('/manga/', '').replace('/', '')
 
             return new Comic({
-                id: id,
+                id: 'mhn_' + id,
                 title: title,
                 cover: thumbnail,
                 description: latestChapter, // Using latest chapter as description
@@ -389,6 +389,7 @@ class ManhwaRawNet extends ComicSource {
          * @returns {Promise<ComicDetails>}
          */
         loadInfo: async (id) => {
+            id = id.replace('mhn_', '')
             const url = `${this.baseUrl}/manga/${id}/`;
             const response = await Network.get(url);
             if (response.status !== 200) {
@@ -460,7 +461,7 @@ class ManhwaRawNet extends ComicSource {
             if (ajaxResponse.status === 200) {
                 // Parse the HTML response from AJAX call
                 const ajaxDocument = new HtmlDocument(ajaxResponse.body);
-                const ajaxChapterElements = ajaxDocument.querySelectorAll('.wp-manga-chapter a');
+                const ajaxChapterElements = ajaxDocument.querySelectorAll('.wp-manga-chapter a').reverse();
 
                 for (const element of ajaxChapterElements) {
                     const chapterTitle = element.text.trim();
@@ -473,7 +474,7 @@ class ManhwaRawNet extends ComicSource {
                 }
             } else {
                 // Fallback to parsing chapters from the main page if AJAX fails
-                const chapterElements = document.querySelectorAll('.wp-manga-chapter a');
+                const chapterElements = document.querySelectorAll('.wp-manga-chapter a').reverse();
                 for (const element of chapterElements) {
                     const chapterTitle = element.text.trim();
                     const chapterUrl = element.attributes['href'];
