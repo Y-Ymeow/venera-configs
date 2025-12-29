@@ -6,7 +6,7 @@ class Goda extends ComicSource {
   name = "GoDa漫画"
 
   // unique id of the source
-  key = "goda"
+  key = "godamh"
 
   version = "1.0.0"
 
