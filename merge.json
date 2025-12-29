@@ -49,9 +49,15 @@
   },
   {
     "name": "GoDa漫画",
+    "fileName": "goda.js",
+    "key": "goda",
+    "version": "1.0.0"
+  },
+  {
+    "name": "Goda",
     "fileName": "godamh.js",
     "key": "godamh",
-    "version": "1.0.0"
+    "version": "1.2.9"
   },
   {
     "name": "嗨皮漫画",
