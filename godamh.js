@@ -1,5 +1,5 @@
 /** @type {import('./_venera_.js')} */
-class Goda extends ComicSource {
+class GodaMH extends ComicSource {
   // Note: The fields which are marked as [Optional] should be removed if not used
 
   // name of the source
