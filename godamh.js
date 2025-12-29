@@ -13,7 +13,7 @@ class Goda extends ComicSource {
   minAppVersion = "1.4.0"
 
   // update url
-  url = "https://git.nyne.dev/nyne/venera-configs/raw/branch/main/goda.js"
+  url = "https://git.nyne.dev/nyne/venera-configs/raw/branch/main/godamh.js"
 
   settings = {
     domains: {
