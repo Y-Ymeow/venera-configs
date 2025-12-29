@@ -3,7 +3,7 @@ class GodaMH extends ComicSource {
   // Note: The fields which are marked as [Optional] should be removed if not used
 
   // name of the source
-  name = "GoDa漫画"
+  name = "GoDa"
 
   // unique id of the source
   key = "godamh"
