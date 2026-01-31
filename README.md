@@ -14,7 +14,7 @@ Configuration file repository for venera
 可通过 `index2.json` 파일自动添加漫画源，无需手动配置。直接使用以下原始链接导入：
 
 ```
-https://raw.githubusercontent.com/Y-Ymeow/venera-configs/refs/heads/main/index2.json
+https://gh-proxy.org/raw.githubusercontent.com/Y-Ymeow/venera-configs/main/merge.json
 ```
 
 **注意事项：**
