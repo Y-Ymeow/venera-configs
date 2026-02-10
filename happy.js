@@ -1,10 +1,12 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.1.1";
+  version = "1.1.2";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
+
+  #currentCodesCache = {};
 
   // --- Cache Implementation ---
   async _withCache(key, fetcher) {
@@ -1942,7 +1944,7 @@ class HappyComicSource extends ComicSource {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             Referer: "https://m.happymh.com/sssearch",
           },
-        },"searchkey=" + encodeURIComponent(keyword) + "&v=v2.13&s=web&d=",);
+        },"searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",);
       if (res.status !== 200) {
         throw new Error("Search failed: " + res.status);
       }
@@ -2004,14 +2006,14 @@ class HappyComicSource extends ComicSource {
         let listChapters = [];
         var chapterPage = 1;
         var hasMoreChapters = true;
+        this.#currentCodesCache = {};
 
         while (hasMoreChapters) {
           var chapterRes = await fetch(
             "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
               comicId +
               "&lang=cn&order=asc&page=" +
-              chapterPage +
-              "&v=v2.1818134",
+              chapterPage,
             {
               headers: {
                 Referer: "https://m.happymh.com" + id,
@@ -2024,9 +2026,7 @@ class HappyComicSource extends ComicSource {
           }
           var chapterData = await chapterRes.json();
 
-          if (chapterData.data.items.length === 0) {
-            hasMoreChapters = false;
-          } else {
+          if (chapterData.data) {
             // Process chapters from current page
             for (var i = 0; i < chapterData.data.items.length; i++) {
               var item = chapterData.data.items[i];
@@ -2034,9 +2034,11 @@ class HappyComicSource extends ComicSource {
               var chapterKey =
                 "/" + comicId + "/dummy-mark/" + item.id + "#" + chapterPage;
               listChapters.push({
+                id: item.id,
                 key: item.codes,
                 name: item.chapterName,
               });
+              this.#currentCodesCache[item.id] = item.codes
             }
             // Check if this is the last page
             if (chapterData.data.isEnd === 1) {
@@ -2047,7 +2049,7 @@ class HappyComicSource extends ComicSource {
         }
 
         listChapters.map((e) => {
-          chapters.set(e.key, e.name);
+          chapters.set(e.key, e.id);
         });
 
         const result = {
@@ -2069,7 +2071,7 @@ class HappyComicSource extends ComicSource {
 
     loadEp: async (comicId, epId) => {
       // Get chapter id from epId
-      var chapterId = epId;
+      var chapterId = this.#currentCodesCache[epId];
 
       var res = await fetch(
         "https://m.happymh.com/v2.0/apis/manga/reading?code=" +

@@ -39,19 +39,13 @@
     "name": "嗨皮漫画",
     "fileName": "happy.js",
     "key": "happy",
-    "version": "1.1.1"
+    "version": "1.1.2"
   },
   {
     "name": "Manga District",
     "fileName": "manga_district.js",
     "key": "manga_district",
     "version": "1.0.3"
-  },
-  {
-    "name": "Manga Park",
-    "fileName": "mangapark.js",
-    "key": "mangapark",
-    "version": "1.0.7"
   },
   {
     "name": "如漫画",
