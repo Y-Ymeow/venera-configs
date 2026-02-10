@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.1.4";
+  version = "1.1.5";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -1944,7 +1944,9 @@ class HappyComicSource extends ComicSource {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             Referer: "https://m.happymh.com/sssearch",
           },
-        },"searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",);
+        },
+        "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
+      );
       if (res.status !== 200) {
         throw new Error("Search failed: " + res.status);
       }
@@ -2010,8 +2012,9 @@ class HappyComicSource extends ComicSource {
         while (hasMoreChapters) {
           var chapterRes = await fetch(
             "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
-              comicId + 
-              "&page=" + chapterPage +
+              comicId +
+              "&page=" +
+              chapterPage +
               "&lang=cn&order=asc",
             {
               headers: {
@@ -2066,15 +2069,15 @@ class HappyComicSource extends ComicSource {
 
     loadEp: async (comicId, epId) => {
       // Get chapter id from epId
-      var chapterId = this.#currentCodesCache[epId];
-
       var res = await fetch(
         "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-          comicId + "&cid=" + epId +
+          comicId +
+          "&cid=" +
+          epId +
           "&v=v3.19191114",
         {
           headers: {
-            Referer: "https://m.happymh.com/" + comicId +  "/" + epId,
+            Referer: "https://m.happymh.com/mangaread/" + comicId + "/" + epId,
             "X-Requested-With": "XMLHttpRequest",
           },
         },
