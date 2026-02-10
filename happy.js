@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.1.5";
+  version = "1.1.6";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -2018,7 +2018,7 @@ class HappyComicSource extends ComicSource {
               "&lang=cn&order=asc",
             {
               headers: {
-                Referer: "https://m.happymh.com" + id,
+                Referer: "https://m.happymh.com/manga/" + id,
                 "X-Requested-With": "XMLHttpRequest",
               },
             },
@@ -2074,9 +2074,10 @@ class HappyComicSource extends ComicSource {
           comicId +
           "&cid=" +
           epId +
-          "&v=v3.19191114",
+          "&v=v3.1919111",
         {
           headers: {
+            "Content-Type": "application/json",
             Referer: "https://m.happymh.com/mangaread/" + comicId + "/" + epId,
             "X-Requested-With": "XMLHttpRequest",
           },
