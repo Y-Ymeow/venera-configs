@@ -1,7 +1,7 @@
 class HappyComicSource extends ComicSource {
   name = "嗨皮漫画";
   key = "happy";
-  version = "1.1.2";
+  version = "1.1.3";
   minAppVersion = "1.0.0";
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
@@ -2006,14 +2006,13 @@ class HappyComicSource extends ComicSource {
         let listChapters = [];
         var chapterPage = 1;
         var hasMoreChapters = true;
-        this.#currentCodesCache = {};
 
         while (hasMoreChapters) {
           var chapterRes = await fetch(
             "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
-              comicId +
-              "&lang=cn&order=asc&page=" +
-              chapterPage,
+              comicId + 
+              "&page=" + chapterPage +
+              "&lang=cn&order=asc"
             {
               headers: {
                 Referer: "https://m.happymh.com" + id,
@@ -2031,14 +2030,10 @@ class HappyComicSource extends ComicSource {
             for (var i = 0; i < chapterData.data.items.length; i++) {
               var item = chapterData.data.items[i];
               // Format the chapter key to include comicId and chapterId
-              var chapterKey =
-                "/" + comicId + "/dummy-mark/" + item.id + "#" + chapterPage;
               listChapters.push({
                 id: item.id,
-                key: item.codes,
                 name: item.chapterName,
               });
-              this.#currentCodesCache[item.id] = item.codes
             }
             // Check if this is the last page
             if (chapterData.data.isEnd === 1) {
@@ -2049,7 +2044,7 @@ class HappyComicSource extends ComicSource {
         }
 
         listChapters.map((e) => {
-          chapters.set(e.key, e.id);
+          chapters.set(e.id, e.name);
         });
 
         const result = {
@@ -2075,11 +2070,11 @@ class HappyComicSource extends ComicSource {
 
       var res = await fetch(
         "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-          chapterId +
-          "&v=v3.1818134",
+          comicId + "&cid=" + epId +
+          "&v=v3.19191114",
         {
           headers: {
-            Referer: "https://m.happymh.com" + epId,
+            Referer: "https://m.happymh.com/" + comicId +  "/" + epId,
             "X-Requested-With": "XMLHttpRequest",
           },
         },
