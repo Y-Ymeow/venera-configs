@@ -2012,7 +2012,7 @@ class HappyComicSource extends ComicSource {
             "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
               comicId + 
               "&page=" + chapterPage +
-              "&lang=cn&order=asc"
+              "&lang=cn&order=asc",
             {
               headers: {
                 Referer: "https://m.happymh.com" + id,
