@@ -149,13 +149,13 @@
     "name": "Manhwa Raw Net",
     "fileName": "manhwa_raw_net.js",
     "key": "manhwa_raw_net",
-    "version": "1.0.1"
+    "version": "1.0.1/"
   },
   {
     "name": "漫蛙",
     "fileName": "manwa.js",
     "key": "manwa",
-    "version": "1.1.3"
+    "version": "1.1.4"
   },
   {
     "name": "漫蛙吧",

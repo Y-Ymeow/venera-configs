@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.1.3";
+  version = "1.1.4";
   minAppVersion = "1.4.0";
 
   url =
@@ -32,7 +32,7 @@ class Manwa extends ComicSource {
 
   // 构建完整URL
   buildUrl(path) {
-    return `${this.domain}${path}`;
+    return `${this.domain}/${path}`;
   }
 
   // --- Cache Implementation ---
