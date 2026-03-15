@@ -99,8 +99,14 @@
     "name": "禁漫天堂",
     "fileName": "jm.js",
     "key": "jm",
-    "version": "1.3.4",
+    "version": "1.3.5",
     "description": "禁漫天堂漫畫源, 不能使用時請嘗試切換分流"
+  },
+  {
+    "name": "Kavita",
+    "fileName": "kavita.js",
+    "key": "kavita",
+    "version": "1.0.0"
   },
   {
     "name": "Komga",
