@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.1.4";
+  version = "1.1.6";
   minAppVersion = "1.4.0";
 
   url =
@@ -117,7 +117,7 @@ class Manwa extends ComicSource {
 
         try {
           // Fetch latest domains from the source
-          const res = await Network.get("https://fuwt.cc/mw666", {
+          const res = await Network.get("https://fuww.cc/mw666", {
             "User-Agent": this.ua,
           });
           if (res.status === 200) {
