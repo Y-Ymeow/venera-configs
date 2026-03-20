@@ -1,2157 +1,706 @@
-class HappyComicSource extends ComicSource {
-  name = "嗨皮漫画";
-  key = "happy";
-  version = "1.1.6";
-  minAppVersion = "1.0.0";
-  url =
-    "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/happy.js";
+class Happy extends ComicSource {
+    // 漫画源基本信息
+    name = "嗨皮漫画"
+    key = "happy"
+    version = "1.0.0"
+    minAppVersion = "1.6.0"
+    url = "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/happy.js"
 
-  #currentCodesCache = {};
+    // 基础URL
+    baseUrl = "https://m.happymh.com"
 
-  // --- Cache Implementation ---
-  async _withCache(key, fetcher) {
-    const enableCache = this.loadSetting("enableCache");
-    if (!enableCache) {
-      return await fetcher();
+    // 分类参数映射
+    categoryParamMap = {
+        "全部": "",
+        "热血": "rexue",
+        "格斗": "gedou",
+        "武侠": "wuxia",
+        "魔幻": "mohuan",
+        "魔法": "mofa",
+        "冒险": "maoxian",
+        "爱情": "aiqing",
+        "搞笑": "gaoxiao",
+        "校园": "xiaoyuan",
+        "科幻": "kehuan",
+        "后宫": "hougong",
+        "励志": "lizhi",
+        "职场": "zhichang",
+        "美食": "meishi",
+        "社会": "shehui",
+        "黑道": "heidao",
+        "战争": "zhanzheng",
+        "历史": "lishi",
+        "悬疑": "xuanyi",
+        "竞技": "jingji",
+        "体育": "tiyu",
+        "恐怖": "kongbu",
+        "推理": "tuili",
+        "生活": "shenghuo",
+        "伪娘": "weiniang",
+        "治愈": "zhiyu",
+        "神鬼": "shengui",
+        "四格": "sige",
+        "百合": "baihe",
+        "耽美": "danmei",
+        "舞蹈": "wudao",
+        "侦探": "zhentan",
+        "宅男": "zhainan",
+        "音乐": "yinyue",
+        "萌系": "mengxi",
+        "古风": "gufeng",
+        "恋爱": "lianai",
+        "都市": "dushi",
+        "性转": "xingzhuan",
+        "穿越": "chuanyue",
+        "游戏": "youxi",
+        "其他": "qita",
+        "爱妻": "aiqi",
+        "日常": "richang",
+        "腹黑": "fuhei",
+        "古装": "guzhuang",
+        "仙侠": "xianxia",
+        "生化": "shenghua",
+        "修仙": "xiuxian",
+        "情感": "qinggan",
+        "改编": "gaibian",
+        "纯爱": "chunai",
+        "唯美": "weimei",
+        "蔷薇": "qiangwei",
+        "明星": "mingxing",
+        "猎奇": "lieqi",
+        "青春": "qingchun",
+        "幻想": "huanxiang",
+        "惊奇": "jingqi",
+        "彩虹": "caihong",
+        "奇闻": "qiwen",
+        "权谋": "quanmou",
+        "宅斗": "zhaidou",
+        "限制级": "xianzhiji",
+        "装逼": "zhuangbi",
+        "浪漫": "langman",
+        "偶像": "ouxiang",
+        "大女主": "danvzhu",
+        "复仇": "fuchou",
+        "虐心": "nuexin",
+        "恶搞": "egao",
+        "灵异": "lingyi",
+        "惊险": "jingxian",
+        "宠爱": "chongai",
+        "逆袭": "nixi",
+        "妖怪": "yaoguai",
+        "暧昧": "aimei",
+        "同人": "tongren",
+        "架空": "jiakong",
+        "真人": "zhenren",
+        "动作": "dongzuo",
+        "橘味": "juwei",
+        "宫斗": "gongdou",
+        "脑洞": "naodong",
+        "漫改": "mangai",
+        "战斗": "zhandou",
+        "丧尸": "sangshi",
+        "美少女": "meishaonv",
+        "怪物": "guaiwu",
+        "系统": "xitong",
+        "智斗": "zhidou",
+        "机甲": "jijia",
+        "高甜": "gaotian",
+        "僵尸": "jiangshi",
+        "致郁": "zhiyu",
+        "电竞": "dianjing",
+        "神魔": "shenmo",
+        "异能": "yineng",
+        "末日": "mori",
+        "乙女": "yinv",
+        "豪快": "haokuai",
+        "奇幻": "qihuan",
+        "绅士": "shenshi",
+        "正能量": "zhengnengliang",
+        "宫廷": "gongting",
+        "亲情": "qinqing",
+        "养成": "yangcheng",
+        "剧情": "juqing",
+        "轻小说": "qingxiaoshuo",
+        "暗黑": "anhei",
+        "长条": "changtiao",
+        "玄幻": "xuanhuan",
+        "霸总": "bazong",
+        "欧皇": "ouhuang",
+        "生存": "shengcun",
+        "异世界": "yishijie",
+        "其它": "qita",
+        "C99": "C99",
+        "节操": "jiecao",
+        "AA": "AA",
+        "影视化": "yingshihua",
+        "欧风": "oufeng",
+        "女神": "nvshen",
+        "爽感": "shuanggan",
+        "转生": "zhuansheng",
+        "异形": "yixing",
+        "反套路": "fantaolu",
+        "双男主": "shuangnanzhu",
+        "无敌流": "wudiliu",
+        "重生": "zhongsheng",
+        "血腥": "xuexing",
+        "奇遇": "qiyu",
+        "泛爱": "fanai",
+        "软萌": "ruanmeng",
+        "邪恶": "xiee",
+        "资讯": "zixun",
+        "女频": "nvpin",
+        "现言": "xianyan",
+        "诡异": "guiyi"
     }
 
-    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
-    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
-
-    const get = (obj, p) =>
-      p.split(".").reduce((acc, part) => acc && acc[part], obj);
-
-    const timestamps = this.loadData("cache_timestamps") || {};
-    const cachedTimestamp = get(timestamps, key);
-    const data = this.loadData("cache_data") || {};
-    const cachedData = get(data, key);
-
-    if (cachedTimestamp && cachedData) {
-      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
-      if (!isExpired) {
-        console.log(`[Cache] HIT: ${key}`);
-        return cachedData;
-      }
+    // 头像ID映射
+    avatarMap = {
+        "0": `${this.baseUrl}/next/bookcase/dist/28c0c017f0c3c6d665ee6b9a71ebc461.png`,
+        "1": `${this.baseUrl}/next/bookcase/dist/ebd700fe1b9ee6ac7793786b7e6b2910.png`,
+        "2": `${this.baseUrl}/next/bookcase/dist/0a2843f0aa4e0c3e62594670d3c48548.png`,
+        "3": `${this.baseUrl}/next/bookcase/dist/bec3031d5dad900b868993510ea623c2.png`,
+        "4": `${this.baseUrl}/next/bookcase/dist/c6799b805ca268e73f73eb1e6642905b.png`,
+        "5": `${this.baseUrl}/next/bookcase/dist/64dbbd1a81e716b6cd0d227a3cf96ce8.png`,
+        "6": `${this.baseUrl}/next/bookcase/dist/9ea59ec786a70bb3f13549ab721e7604.png`,
+        "7": `${this.baseUrl}/next/bookcase/dist/0c40a05f21b93364457d221f8f09b975.png`,
+        "8": `${this.baseUrl}/next/bookcase/dist/28c0c017f0c3c6d665ee6b9a71ebc461.png`,
+        "9": `${this.baseUrl}/next/bookcase/dist/fa323f06704f537c396c7fc2269fe31c.png`,
+        "10": `${this.baseUrl}/next/bookcase/dist/9a80d1d72cb1e1e6e7e8178524cc29bd.png`,
+        "11": `${this.baseUrl}/next/bookcase/dist/845be1af432b6df590aef786ba692739.png`,
+        "12": `${this.baseUrl}/next/bookcase/dist/57336e9f3b941f7f501b353e128cd764.png`,
+        "13": `${this.baseUrl}/next/bookcase/dist/02d9fe624cbee696e77b5e8a16bb8980.png`,
+        "14": `${this.baseUrl}/next/bookcase/dist/e10824d3bf7a1ef4e1996c053420eeea.png`,
+        "15": `${this.baseUrl}/next/bookcase/dist/b3ffe4351a7e6f1e5a5e48932eadf17f.png`,
+        "16": `${this.baseUrl}/next/bookcase/dist/cea88102f3bc609f9910851ff15a5105.png`
     }
 
-    try {
-      console.log(
-        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
-      );
-      const newData = await fetcher();
+    // 格式化作者信息
+    formatAuthor = (authorRaw) => {
+        const authorStr = authorRaw?.replace(/[+/?·]/g, ",").replace(/,（/g, "(").replace(/：|:,/g, ":").replace(/（/g, "(").replace(/）/g, ")")
+        const authors = authorStr?.split(",").map(a => a.trim()).filter(a => a)
+        return authors
+    }
 
-      const set = (obj, p, val) => {
-        const parts = p.split(".");
-        const last = parts.pop();
-        let current = obj;
-        for (const part of parts) {
-          if (!current[part]) {
-            current[part] = {};
-          }
-          current = current[part];
+    // 格式化更新时间
+    formatUpdateTime = (timeRaw) => {
+        // 如果是 MM-DD 格式，添加当前年份
+        if (/^\d{2}-\d{2}$/.test(timeRaw)) {
+            return `${new Date().getFullYear()}-${timeRaw}`
         }
-        current[last] = val;
-        return obj;
-      };
 
-      let allTimestamps = this.loadData("cache_timestamps") || {};
-      let allData = this.loadData("cache_data") || {};
-      let allKeys = this.loadData("cache_keys") || {};
-
-      set(allTimestamps, key, Date.now());
-      set(allData, key, newData);
-      set(allKeys, key, true);
-
-      this.saveData("cache_timestamps", allTimestamps);
-      this.saveData("cache_data", allData);
-      this.saveData("cache_keys", allKeys);
-
-      return newData;
-    } catch (e) {
-      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
-      if (cachedData) {
-        console.log(
-          `[Cache] Using STALE data for ${key} due to network error.`,
-        );
-        return cachedData;
-      }
-      throw e;
+        return timeRaw
     }
-  }
 
-  init() {
-    // Initialize the cache system
-  }
+    // 从HTML元素解析漫画信息
+    parseHtmlComic = (item) => {
+        const id = item.querySelector("a").attributes.href.split("/").pop()
+        const title = item.querySelector(".manga-title")?.text.trim()
+        const cover = item.querySelector("mip-img").attributes.src
+        const lastChapter = item.querySelector(".manga-chapter")?.text.replace("更新至：", "").trim()
+        const rank = item.querySelector(".rank-number-small")?.text.trim()
+        const categoryElems = item.querySelectorAll(".manga-category")
+        const tags = categoryElems[0]?.text.split(/[|、]/).map(a => a.trim()).filter(a => a)
+        const authorElem = categoryElems[1]?.text.trim()
+        const author = this.formatAuthor(authorElem)?.join(" | ")
+        const score = categoryElems.slice(2).map(a => a.text.trim()).filter(a => a).join(" | ")
 
-  explore = [
-    {
-      title: "嗨皮漫画",
-      type: "multiPageComicList",
-      load: async (page) => {
-        var res = await fetch(
-          "https://m.happymh.com/apis/c/index?pn=" +
-            page +
-            "&series_status=-1&order=last_date",
-          {
-            headers: {
-              Referer: "https://m.happymh.com/latest",
-              Priority: "u=4",
-              "Sec-GPC": 1,
-              Connection: "keep-alive",
-            },
-          },
-        );
-        if (res.status !== 200) {
-          Network.deleteCookies(
-            "https://m.happymh.com/apis/c/index?pn=" +
-              page +
-              "&series_status=-1&order=last_date",
-          );
-          throw new Error("Explore failed: " + res.status);
+        return {
+            id: id,
+            title: rank ? `${rank}. ${title}` : title,
+            subTitle: author,
+            cover: cover,
+            tags: tags,
+            description: lastChapter || score || author
         }
+    }
 
-        var data = await res.json();
-        var comics = [];
-        for (var i = 0; i < data.data.items.length; i++) {
-          var item = data.data.items[i];
-          var comic = this.parseComic(item);
-          comics.push(comic);
+    // 从JSON数据解析漫画信息
+    parseJsonComic = (item) => {
+        const author = this.formatAuthor(item.author)?.join(" | ")
+
+        return {
+            id: item.manga_code,
+            title: item.name,
+            subTitle: author,
+            cover: item.cover,
+            tags: item.genre_ids?.split("、").map(a => a.trim()).filter(a => a),
+            description: item.last_chapter || author
+        }
+    }
+
+    // 解析评论数据
+    parseComment = (item) => {
+        let content = item.content
+
+        // 如果是回复评论，添加@用户标记
+        if (item.reply_to_comment && item.reply_to_comment.user) {
+            content = `回复 <b><a>@${item.reply_to_comment.user.username}</a></b>：${content}`
         }
 
         return {
-          comics: comics,
-          maxPage: data.data.isEnd ? page : page + 1,
-        };
-      },
-    },
-  ];
+            userName: item.user.username,
+            avatar: this.avatarMap[item.user.cover],
+            content: content,
+            time: item.reply_to_comment ? item.create_time : `章节：${item.ch_name}\n${item.create_time}`,
+            replyCount: item.reply_to_comment ? null : item.sub_comments_count,
+            id: item.id
+        }
+    }
 
-  category = {
-    title: "嗨皮漫画",
-    parts: [
-      {
-        name: "分类",
-        type: "fixed",
-        categories: [
-          {
-            label: "全部",
-            target: {
-              page: "category",
-              attributes: {
-                category: "全部",
-                param: null,
-                title: "全部",
-              },
-            },
-          },
-          {
-            label: "热血",
-            target: {
-              page: "category",
-              attributes: {
-                category: "rexue",
-                param: null,
-                title: "热血",
-              },
-            },
-          },
-          {
-            label: "格斗",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gedou",
-                param: null,
-                title: "格斗",
-              },
-            },
-          },
-          {
-            label: "武侠",
-            target: {
-              page: "category",
-              attributes: {
-                category: "wuxia",
-                param: null,
-                title: "武侠",
-              },
-            },
-          },
-          {
-            label: "魔幻",
-            target: {
-              page: "category",
-              attributes: {
-                category: "mohuan",
-                param: null,
-                title: "魔幻",
-              },
-            },
-          },
-          {
-            label: "魔法",
-            target: {
-              page: "category",
-              attributes: {
-                category: "mofa",
-                param: null,
-                title: "魔法",
-              },
-            },
-          },
-          {
-            label: "冒险",
-            target: {
-              page: "category",
-              attributes: {
-                category: "maoxian",
-                param: null,
-                title: "冒险",
-              },
-            },
-          },
-          {
-            label: "爱情",
-            target: {
-              page: "category",
-              attributes: {
-                category: "aiqing",
-                param: null,
-                title: "爱情",
-              },
-            },
-          },
-          {
-            label: "搞笑",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gaoxiao",
-                param: null,
-                title: "搞笑",
-              },
-            },
-          },
-          {
-            label: "校园",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xiaoyuan",
-                param: null,
-                title: "校园",
-              },
-            },
-          },
-          {
-            label: "科幻",
-            target: {
-              page: "category",
-              attributes: {
-                category: "kehuan",
-                param: null,
-                title: "科幻",
-              },
-            },
-          },
-          {
-            label: "后宫",
-            target: {
-              page: "category",
-              attributes: {
-                category: "hougong",
-                param: null,
-                title: "后宫",
-              },
-            },
-          },
-          {
-            label: "励志",
-            target: {
-              page: "category",
-              attributes: {
-                category: "lizhi",
-                param: null,
-                title: "励志",
-              },
-            },
-          },
-          {
-            label: "职场",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhichang",
-                param: null,
-                title: "职场",
-              },
-            },
-          },
-          {
-            label: "美食",
-            target: {
-              page: "category",
-              attributes: {
-                category: "meishi",
-                param: null,
-                title: "美食",
-              },
-            },
-          },
-          {
-            label: "社会",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shehui",
-                param: null,
-                title: "社会",
-              },
-            },
-          },
-          {
-            label: "黑道",
-            target: {
-              page: "category",
-              attributes: {
-                category: "heidao",
-                param: null,
-                title: "黑道",
-              },
-            },
-          },
-          {
-            label: "战争",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhanzheng",
-                param: null,
-                title: "战争",
-              },
-            },
-          },
-          {
-            label: "历史",
-            target: {
-              page: "category",
-              attributes: {
-                category: "lishi",
-                param: null,
-                title: "历史",
-              },
-            },
-          },
-          {
-            label: "悬疑",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xuanyi",
-                param: null,
-                title: "悬疑",
-              },
-            },
-          },
-          {
-            label: "竞技",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jingji",
-                param: null,
-                title: "竞技",
-              },
-            },
-          },
-          {
-            label: "体育",
-            target: {
-              page: "category",
-              attributes: {
-                category: "tiyu",
-                param: null,
-                title: "体育",
-              },
-            },
-          },
-          {
-            label: "恐怖",
-            target: {
-              page: "category",
-              attributes: {
-                category: "kongbu",
-                param: null,
-                title: "恐怖",
-              },
-            },
-          },
-          {
-            label: "推理",
-            target: {
-              page: "category",
-              attributes: {
-                category: "tuili",
-                param: null,
-                title: "推理",
-              },
-            },
-          },
-          {
-            label: "生活",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shenghuo",
-                param: null,
-                title: "生活",
-              },
-            },
-          },
-          {
-            label: "伪娘",
-            target: {
-              page: "category",
-              attributes: {
-                category: "weiniang",
-                param: null,
-                title: "伪娘",
-              },
-            },
-          },
-          {
-            label: "治愈",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhiyu",
-                param: null,
-                title: "治愈",
-              },
-            },
-          },
-          {
-            label: "神鬼",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shengui",
-                param: null,
-                title: "神鬼",
-              },
-            },
-          },
-          {
-            label: "四格",
-            target: {
-              page: "category",
-              attributes: {
-                category: "sige",
-                param: null,
-                title: "四格",
-              },
-            },
-          },
-          {
-            label: "百合",
-            target: {
-              page: "category",
-              attributes: {
-                category: "baihe",
-                param: null,
-                title: "百合",
-              },
-            },
-          },
-          {
-            label: "耽美",
-            target: {
-              page: "category",
-              attributes: {
-                category: "danmei",
-                param: null,
-                title: "耽美",
-              },
-            },
-          },
-          {
-            label: "舞蹈",
-            target: {
-              page: "category",
-              attributes: {
-                category: "wudao",
-                param: null,
-                title: "舞蹈",
-              },
-            },
-          },
-          {
-            label: "侦探",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhentan",
-                param: null,
-                title: "侦探",
-              },
-            },
-          },
-          {
-            label: "宅男",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhainan",
-                param: null,
-                title: "宅男",
-              },
-            },
-          },
-          {
-            label: "音乐",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yinyue",
-                param: null,
-                title: "音乐",
-              },
-            },
-          },
-          {
-            label: "萌系",
-            target: {
-              page: "category",
-              attributes: {
-                category: "mengxi",
-                param: null,
-                title: "萌系",
-              },
-            },
-          },
-          {
-            label: "古风",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gufeng",
-                param: null,
-                title: "古风",
-              },
-            },
-          },
-          {
-            label: "恋爱",
-            target: {
-              page: "category",
-              attributes: {
-                category: "lianai",
-                param: null,
-                title: "恋爱",
-              },
-            },
-          },
-          {
-            label: "都市",
-            target: {
-              page: "category",
-              attributes: {
-                category: "dushi",
-                param: null,
-                title: "都市",
-              },
-            },
-          },
-          {
-            label: "性转",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xingzhuan",
-                param: null,
-                title: "性转",
-              },
-            },
-          },
-          {
-            label: "穿越",
-            target: {
-              page: "category",
-              attributes: {
-                category: "chuanyue",
-                param: null,
-                title: "穿越",
-              },
-            },
-          },
-          {
-            label: "游戏",
-            target: {
-              page: "category",
-              attributes: {
-                category: "youxi",
-                param: null,
-                title: "游戏",
-              },
-            },
-          },
-          {
-            label: "其他",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qita",
-                param: null,
-                title: "其他",
-              },
-            },
-          },
-          {
-            label: "爱妻",
-            target: {
-              page: "category",
-              attributes: {
-                category: "aiqi",
-                param: null,
-                title: "爱妻",
-              },
-            },
-          },
-          {
-            label: "日常",
-            target: {
-              page: "category",
-              attributes: {
-                category: "richang",
-                param: null,
-                title: "日常",
-              },
-            },
-          },
-          {
-            label: "腹黑",
-            target: {
-              page: "category",
-              attributes: {
-                category: "fuhei",
-                param: null,
-                title: "腹黑",
-              },
-            },
-          },
-          {
-            label: "古装",
-            target: {
-              page: "category",
-              attributes: {
-                category: "guzhuang",
-                param: null,
-                title: "古装",
-              },
-            },
-          },
-          {
-            label: "仙侠",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xianxia",
-                param: null,
-                title: "仙侠",
-              },
-            },
-          },
-          {
-            label: "生化",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shenghua",
-                param: null,
-                title: "生化",
-              },
-            },
-          },
-          {
-            label: "修仙",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xiuxian",
-                param: null,
-                title: "修仙",
-              },
-            },
-          },
-          {
-            label: "情感",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qinggan",
-                param: null,
-                title: "情感",
-              },
-            },
-          },
-          {
-            label: "改编",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gaibian",
-                param: null,
-                title: "改编",
-              },
-            },
-          },
-          {
-            label: "纯爱",
-            target: {
-              page: "category",
-              attributes: {
-                category: "chunai",
-                param: null,
-                title: "纯爱",
-              },
-            },
-          },
-          {
-            label: "唯美",
-            target: {
-              page: "category",
-              attributes: {
-                category: "weimei",
-                param: null,
-                title: "唯美",
-              },
-            },
-          },
-          {
-            label: "蔷薇",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qiangwei",
-                param: null,
-                title: "蔷薇",
-              },
-            },
-          },
-          {
-            label: "明星",
-            target: {
-              page: "category",
-              attributes: {
-                category: "mingxing",
-                param: null,
-                title: "明星",
-              },
-            },
-          },
-          {
-            label: "猎奇",
-            target: {
-              page: "category",
-              attributes: {
-                category: "lieqi",
-                param: null,
-                title: "猎奇",
-              },
-            },
-          },
-          {
-            label: "青春",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qingchun",
-                param: null,
-                title: "青春",
-              },
-            },
-          },
-          {
-            label: "幻想",
-            target: {
-              page: "category",
-              attributes: {
-                category: "huanxiang",
-                param: null,
-                title: "幻想",
-              },
-            },
-          },
-          {
-            label: "惊奇",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jingqi",
-                param: null,
-                title: "惊奇",
-              },
-            },
-          },
-          {
-            label: "彩虹",
-            target: {
-              page: "category",
-              attributes: {
-                category: "caihong",
-                param: null,
-                title: "彩虹",
-              },
-            },
-          },
-          {
-            label: "奇闻",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qiwen",
-                param: null,
-                title: "奇闻",
-              },
-            },
-          },
-          {
-            label: "权谋",
-            target: {
-              page: "category",
-              attributes: {
-                category: "quanmou",
-                param: null,
-                title: "权谋",
-              },
-            },
-          },
-          {
-            label: "宅斗",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhaidou",
-                param: null,
-                title: "宅斗",
-              },
-            },
-          },
-          {
-            label: "限制级",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xianzhiji",
-                param: null,
-                title: "限制级",
-              },
-            },
-          },
-          {
-            label: "装逼",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhuangbi",
-                param: null,
-                title: "装逼",
-              },
-            },
-          },
-          {
-            label: "浪漫",
-            target: {
-              page: "category",
-              attributes: {
-                category: "langman",
-                param: null,
-                title: "浪漫",
-              },
-            },
-          },
-          {
-            label: "偶像",
-            target: {
-              page: "category",
-              attributes: {
-                category: "ouxiang",
-                param: null,
-                title: "偶像",
-              },
-            },
-          },
-          {
-            label: "大女主",
-            target: {
-              page: "category",
-              attributes: {
-                category: "danvzhu",
-                param: null,
-                title: "大女主",
-              },
-            },
-          },
-          {
-            label: "复仇",
-            target: {
-              page: "category",
-              attributes: {
-                category: "fuchou",
-                param: null,
-                title: "复仇",
-              },
-            },
-          },
-          {
-            label: "虐心",
-            target: {
-              page: "category",
-              attributes: {
-                category: "nuexin",
-                param: null,
-                title: "虐心",
-              },
-            },
-          },
-          {
-            label: "恶搞",
-            target: {
-              page: "category",
-              attributes: {
-                category: "egao",
-                param: null,
-                title: "恶搞",
-              },
-            },
-          },
-          {
-            label: "灵异",
-            target: {
-              page: "category",
-              attributes: {
-                category: "lingyi",
-                param: null,
-                title: "灵异",
-              },
-            },
-          },
-          {
-            label: "惊险",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jingxian",
-                param: null,
-                title: "惊险",
-              },
-            },
-          },
-          {
-            label: "宠爱",
-            target: {
-              page: "category",
-              attributes: {
-                category: "chongai",
-                param: null,
-                title: "宠爱",
-              },
-            },
-          },
-          {
-            label: "逆袭",
-            target: {
-              page: "category",
-              attributes: {
-                category: "nixi",
-                param: null,
-                title: "逆袭",
-              },
-            },
-          },
-          {
-            label: "妖怪",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yaoguai",
-                param: null,
-                title: "妖怪",
-              },
-            },
-          },
-          {
-            label: "暧昧",
-            target: {
-              page: "category",
-              attributes: {
-                category: "aimei",
-                param: null,
-                title: "暧昧",
-              },
-            },
-          },
-          {
-            label: "同人",
-            target: {
-              page: "category",
-              attributes: {
-                category: "tongren",
-                param: null,
-                title: "同人",
-              },
-            },
-          },
-          {
-            label: "架空",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jiakong",
-                param: null,
-                title: "架空",
-              },
-            },
-          },
-          {
-            label: "真人",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhenren",
-                param: null,
-                title: "真人",
-              },
-            },
-          },
-          {
-            label: "动作",
-            target: {
-              page: "category",
-              attributes: {
-                category: "dongzuo",
-                param: null,
-                title: "动作",
-              },
-            },
-          },
-          {
-            label: "橘味",
-            target: {
-              page: "category",
-              attributes: {
-                category: "juwei",
-                param: null,
-                title: "橘味",
-              },
-            },
-          },
-          {
-            label: "宫斗",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gongdou",
-                param: null,
-                title: "宫斗",
-              },
-            },
-          },
-          {
-            label: "脑洞",
-            target: {
-              page: "category",
-              attributes: {
-                category: "naodong",
-                param: null,
-                title: "脑洞",
-              },
-            },
-          },
-          {
-            label: "漫改",
-            target: {
-              page: "category",
-              attributes: {
-                category: "mangai",
-                param: null,
-                title: "漫改",
-              },
-            },
-          },
-          {
-            label: "战斗",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhandou",
-                param: null,
-                title: "战斗",
-              },
-            },
-          },
-          {
-            label: "丧尸",
-            target: {
-              page: "category",
-              attributes: {
-                category: "sangshi",
-                param: null,
-                title: "丧尸",
-              },
-            },
-          },
-          {
-            label: "美少女",
-            target: {
-              page: "category",
-              attributes: {
-                category: "meishaonv",
-                param: null,
-                title: "美少女",
-              },
-            },
-          },
-          {
-            label: "怪物",
-            target: {
-              page: "category",
-              attributes: {
-                category: "guaiwu",
-                param: null,
-                title: "怪物",
-              },
-            },
-          },
-          {
-            label: "系统",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xitong",
-                param: null,
-                title: "系统",
-              },
-            },
-          },
-          {
-            label: "智斗",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhidou",
-                param: null,
-                title: "智斗",
-              },
-            },
-          },
-          {
-            label: "机甲",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jijia",
-                param: null,
-                title: "机甲",
-              },
-            },
-          },
-          {
-            label: "高甜",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gaotian",
-                param: null,
-                title: "高甜",
-              },
-            },
-          },
-          {
-            label: "僵尸",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jiangshi",
-                param: null,
-                title: "僵尸",
-              },
-            },
-          },
-          {
-            label: "致郁",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhiyu",
-                param: null,
-                title: "致郁",
-              },
-            },
-          },
-          {
-            label: "电竞",
-            target: {
-              page: "category",
-              attributes: {
-                category: "dianjing",
-                param: null,
-                title: "电竞",
-              },
-            },
-          },
-          {
-            label: "神魔",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shenmo",
-                param: null,
-                title: "神魔",
-              },
-            },
-          },
-          {
-            label: "异能",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yineng",
-                param: null,
-                title: "异能",
-              },
-            },
-          },
-          {
-            label: "末日",
-            target: {
-              page: "category",
-              attributes: {
-                category: "mori",
-                param: null,
-                title: "末日",
-              },
-            },
-          },
-          {
-            label: "乙女",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yinv",
-                param: null,
-                title: "乙女",
-              },
-            },
-          },
-          {
-            label: "豪快",
-            target: {
-              page: "category",
-              attributes: {
-                category: "haokuai",
-                param: null,
-                title: "豪快",
-              },
-            },
-          },
-          {
-            label: "奇幻",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qihuan",
-                param: null,
-                title: "奇幻",
-              },
-            },
-          },
-          {
-            label: "绅士",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shenshi",
-                param: null,
-                title: "绅士",
-              },
-            },
-          },
-          {
-            label: "正能量",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhengnengliang",
-                param: null,
-                title: "正能量",
-              },
-            },
-          },
-          {
-            label: "宫廷",
-            target: {
-              page: "category",
-              attributes: {
-                category: "gongting",
-                param: null,
-                title: "宫廷",
-              },
-            },
-          },
-          {
-            label: "亲情",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qinqing",
-                param: null,
-                title: "亲情",
-              },
-            },
-          },
-          {
-            label: "养成",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yangcheng",
-                param: null,
-                title: "养成",
-              },
-            },
-          },
-          {
-            label: "剧情",
-            target: {
-              page: "category",
-              attributes: {
-                category: "juqing",
-                param: null,
-                title: "剧情",
-              },
-            },
-          },
-          {
-            label: "轻小说",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qingxiaoshuo",
-                param: null,
-                title: "轻小说",
-              },
-            },
-          },
-          {
-            label: "暗黑",
-            target: {
-              page: "category",
-              attributes: {
-                category: "anhei",
-                param: null,
-                title: "暗黑",
-              },
-            },
-          },
-          {
-            label: "长条",
-            target: {
-              page: "category",
-              attributes: {
-                category: "changtiao",
-                param: null,
-                title: "长条",
-              },
-            },
-          },
-          {
-            label: "玄幻",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xuanhuan",
-                param: null,
-                title: "玄幻",
-              },
-            },
-          },
-          {
-            label: "霸总",
-            target: {
-              page: "category",
-              attributes: {
-                category: "bazong",
-                param: null,
-                title: "霸总",
-              },
-            },
-          },
-          {
-            label: "欧皇",
-            target: {
-              page: "category",
-              attributes: {
-                category: "ouhuang",
-                param: null,
-                title: "欧皇",
-              },
-            },
-          },
-          {
-            label: "生存",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shengcun",
-                param: null,
-                title: "生存",
-              },
-            },
-          },
-          {
-            label: "异世界",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yishijie",
-                param: null,
-                title: "异世界",
-              },
-            },
-          },
-          {
-            label: "C99",
-            target: {
-              page: "category",
-              attributes: {
-                category: "C99",
-                param: null,
-                title: "C99",
-              },
-            },
-          },
-          {
-            label: "节操",
-            target: {
-              page: "category",
-              attributes: {
-                category: "jiecao",
-                param: null,
-                title: "节操",
-              },
-            },
-          },
-          {
-            label: "AA",
-            target: {
-              page: "category",
-              attributes: {
-                category: "AA",
-                param: null,
-                title: "AA",
-              },
-            },
-          },
-          {
-            label: "影视化",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yingshihua",
-                param: null,
-                title: "影视化",
-              },
-            },
-          },
-          {
-            label: "欧风",
-            target: {
-              page: "category",
-              attributes: {
-                category: "oufeng",
-                param: null,
-                title: "欧风",
-              },
-            },
-          },
-          {
-            label: "女神",
-            target: {
-              page: "category",
-              attributes: {
-                category: "nvshen",
-                param: null,
-                title: "女神",
-              },
-            },
-          },
-          {
-            label: "爽感",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shuanggan",
-                param: null,
-                title: "爽感",
-              },
-            },
-          },
-          {
-            label: "转生",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhuansheng",
-                param: null,
-                title: "转生",
-              },
-            },
-          },
-          {
-            label: "异形",
-            target: {
-              page: "category",
-              attributes: {
-                category: "yixing",
-                param: null,
-                title: "异形",
-              },
-            },
-          },
-          {
-            label: "反套路",
-            target: {
-              page: "category",
-              attributes: {
-                category: "fantaolu",
-                param: null,
-                title: "反套路",
-              },
-            },
-          },
-          {
-            label: "双男主",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shuangnanzhu",
-                param: null,
-                title: "双男主",
-              },
-            },
-          },
-          {
-            label: "无敌流",
-            target: {
-              page: "category",
-              attributes: {
-                category: "wudiliu",
-                param: null,
-                title: "无敌流",
-              },
-            },
-          },
-          {
-            label: "性转换",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xingzhuanhuan",
-                param: null,
-                title: "性转换",
-              },
-            },
-          },
-          {
-            label: "重生",
-            target: {
-              page: "category",
-              attributes: {
-                category: "zhongsheng",
-                param: null,
-                title: "重生",
-              },
-            },
-          },
-          {
-            label: "血腥",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xuexing",
-                param: null,
-                title: "血腥",
-              },
-            },
-          },
-          {
-            label: "奇遇",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qiyu",
-                param: null,
-                title: "奇遇",
-              },
-            },
-          },
-          {
-            label: "泛爱",
-            target: {
-              page: "category",
-              attributes: {
-                category: "fanai",
-                param: null,
-                title: "泛爱",
-              },
-            },
-          },
-          {
-            label: "软萌",
-            target: {
-              page: "category",
-              attributes: {
-                category: "ruanmeng",
-                param: null,
-                title: "软萌",
-              },
-            },
-          },
-          {
-            label: "小天使",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xiaotianshi",
-                param: null,
-                title: "小天使",
-              },
-            },
-          },
-          {
-            label: "邪恶",
-            target: {
-              page: "category",
-              attributes: {
-                category: "xiee",
-                param: null,
-                title: "邪恶",
-              },
-            },
-          },
-        ],
-      },
-      {
-        name: "地区",
-        type: "fixed",
-        categories: [
-          {
-            label: "全部",
-            target: {
-              page: "category",
-              attributes: {
-                category: "全部",
-                param: null,
-                title: "全部",
-              },
-            },
-          },
-          {
-            label: "内地",
-            target: {
-              page: "category",
-              attributes: {
-                category: "china",
-                param: null,
-                title: "内地",
-              },
-            },
-          },
-          {
-            label: "日本",
-            target: {
-              page: "category",
-              attributes: {
-                category: "japan",
-                param: null,
-                title: "日本",
-              },
-            },
-          },
-          {
-            label: "港台",
-            target: {
-              page: "category",
-              attributes: {
-                category: "hongkong",
-                param: null,
-                title: "港台",
-              },
-            },
-          },
-          {
-            label: "欧美",
-            target: {
-              page: "category",
-              attributes: {
-                category: "europe",
-                param: null,
-                title: "欧美",
-              },
-            },
-          },
-          {
-            label: "韩国",
-            target: {
-              page: "category",
-              attributes: {
-                category: "korea",
-                param: null,
-                title: "韩国",
-              },
-            },
-          },
-          {
-            label: "其他",
-            target: {
-              page: "category",
-              attributes: {
-                category: "other",
-                param: null,
-                title: "其他",
-              },
-            },
-          },
-        ],
-      },
-      {
-        name: "受众",
-        type: "fixed",
-        categories: [
-          {
-            label: "全部",
-            target: {
-              page: "category",
-              attributes: {
-                category: "全部",
-                param: null,
-                title: "全部",
-              },
-            },
-          },
-          {
-            label: "少年",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shaonian",
-                param: null,
-                title: "少年",
-              },
-            },
-          },
-          {
-            label: "少女",
-            target: {
-              page: "category",
-              attributes: {
-                category: "shaonv",
-                param: null,
-                title: "少女",
-              },
-            },
-          },
-          {
-            label: "青年",
-            target: {
-              page: "category",
-              attributes: {
-                category: "qingnian",
-                param: null,
-                title: "青年",
-              },
-            },
-          },
-          {
-            label: "BL",
-            target: {
-              page: "category",
-              attributes: {
-                category: "BL",
-                param: null,
-                title: "BL",
-              },
-            },
-          },
-          {
-            label: "GL",
-            target: {
-              page: "category",
-              attributes: {
-                category: "GL",
-                param: null,
-                title: "GL",
-              },
-            },
-          },
-        ],
-      },
-    ],
-    enableRankingPage: false,
-  };
+    // 通用评论加载功能
+    loadCommentsCommon = async (comicId, epId, page, replyTo, from) => {
+        if (replyTo) {
+            // 加载楼中楼评论列表
+            const api = `${this.baseUrl}/v2.0/apis/comment/subComments?root_id=${replyTo}&pn=${page}&ps=10`
+            const res = await Network.get(api)
 
-  categoryComics = {
-    load: async (category, param, options, page) => {
-      // Track which filters have been applied via category to avoid conflicts with options
-      let hasCategoryGenre = false;
-      let hasCategoryArea = false;
-      let hasCategoryAudience = false;
-      let hasCategoryStatus = false;
+            if (res.status !== 200) {
+                throw `评论接口请求失败: ${res.status}`
+            }
 
-      // Parse parameters
-      var genre = "";
-      var area = "";
-      var audience = "";
-      var status = "-1"; // Default to all statuses
-
-      // Handle the main category based on its type
-      // Check category type based on predefined values
-      const areaValues = [
-        "china",
-        "japan",
-        "hongkong",
-        "europe",
-        "korea",
-        "other",
-      ];
-      const audienceValues = ["shaonian", "shaonv", "qingnian", "BL", "GL"];
-      const statusValues = ["连载中", "完结"];
-
-      if (category !== "全部") {
-        if (areaValues.includes(category)) {
-          area = category;
-          hasCategoryArea = true;
-        } else if (audienceValues.includes(category)) {
-          audience = category;
-          hasCategoryAudience = true;
-        } else if (statusValues.includes(category)) {
-          status = category === "连载中" ? "0" : "1";
-          hasCategoryStatus = true;
+            const data = JSON.parse(res.body)
+            return {
+                comments: data.data.items.map(this.parseComment),
+                maxPage: data.data.is_end ? page : null
+            }
         } else {
-          // Treat as genre
-          genre = category;
-          hasCategoryGenre = true;
-        }
-      }
+            // 加载主楼评论列表
+            const order = this.loadSetting("commentOrder")
+            const ch_id = epId ? `&ch_id=${epId}` : ""
+            const api = `${this.baseUrl}/v2.0/apis/comment?code=${comicId}${ch_id}&pn=${page}&order=${order}&from=${from}`
+            const res = await Network.get(api)
 
-      // Apply filters from options since now we only have one "all" category
-      // But only if the corresponding category filter hasn't been applied yet
-      for (var i = 0; i < options.length; i++) {
-        var option = options[i];
-        if (option.includes("area@")) {
-          // Only apply area option if no category area filter was applied
-          if (!hasCategoryArea) {
-            area = option.split("-")[0].split("@")[1] || "";
-          }
-        } else if (option.includes("audience@")) {
-          // Only apply audience option if no category audience filter was applied
-          if (!hasCategoryAudience) {
-            audience = option.split("-")[0].split("@")[1] || "";
-          }
-        } else if (option.includes("status@")) {
-          // Only apply status option if no category status filter was applied
-          if (!hasCategoryStatus) {
-            status = option.split("-")[0].split("@")[1] || "-1";
-          }
-        }
-      }
-
-      // Build URL
-      var url = "https://m.happymh.com/apis/c/index?";
-      if (genre !== "") url += "genre=" + genre + "&";
-      if (area !== "") url += "area=" + area + "&";
-      if (audience !== "") url += "audience=" + audience + "&";
-      if (status !== "-1") url += "series_status=" + status + "&";
-      url += "pn=" + page;
-
-      var res = await fetch(url, {
-        headers: {
-          Referer: "https://m.happymh.com/latest",
-        },
-      });
-      if (res.status !== 200) {
-        throw new Error("CategoryComics failed: " + res.status);
-      }
-      var data = await res.json();
-      var comics = [];
-      for (var i = 0; i < data.data.items.length; i++) {
-        var item = data.data.items[i];
-        var comic = this.parseComic(item);
-        comics.push(comic);
-      }
-
-      return {
-        comics: comics,
-        maxPage: data.data.isEnd ? page : page + 1,
-      };
-    },
-    optionList: [
-      {
-        label: "地区",
-        options: [
-          "area@-全部",
-          "area@china-内地",
-          "area@japan-日本",
-          "area@hongkong-港台",
-          "area@europe-欧美",
-          "area@korea-韩国",
-          "area@other-其他",
-        ],
-        notShowWhen: ["china", "japan", "hongkong", "europe", "korea", "other"], // Hide when area category is selected
-      },
-      {
-        label: "受众",
-        options: [
-          "audience@-全部",
-          "audience@shaonian-少年",
-          "audience@shaonv-少女",
-          "audience@qingnian-青年",
-          "audience@BL-BL",
-          "audience@GL-GL",
-        ],
-        notShowWhen: ["shaonian", "shaonv", "qingnian", "BL", "GL"], // Hide when audience category is selected
-      },
-      {
-        label: "状态",
-        options: ["status@-全部", "status@0-连载中", "status@1-完结"],
-        notShowWhen: ["连载中", "完结"], // Hide when status category is selected
-      },
-    ],
-  };
-
-  search = {
-    load: async (keyword, options, page) => {
-      if (!keyword) {
-        // Default to "全部" category when no keyword is provided
-        return await this.categoryComics.load("全部", null, options, page);
-      }
-
-      var res = await Network.post(
-        "https://m.happymh.com/v2.0/apis/manga/ssearch",
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            Referer: "https://m.happymh.com/sssearch",
-          },
-        },
-        "searchkey=" + encodeURIComponent(keyword) + "&v=v2.13",
-      );
-      if (res.status !== 200) {
-        throw new Error("Search failed: " + res.status);
-      }
-      var data = JSON.parse(res.body);
-      var comics = [];
-      for (var i = 0; i < data.data.items.length; i++) {
-        var item = data.data.items[i];
-        var comic = this.parseComic(item);
-        comics.push(comic);
-      }
-
-      return {
-        comics: comics,
-        maxPage: page, // Search typically doesn't have pagination in this API
-      };
-    },
-  };
-
-  comic = {
-    loadInfo: async (id) => {
-      return this._withCache(`comic_${id}.info`, async () => {
-        var res = await Network.get("https://m.happymh.com/manga/" + id, {
-          headers: {
-            Referer: "https://m.happymh.com/latest",
-          },
-        });
-        if (res.status !== 200) {
-          throw new Error("Comic info failed: " + res.status);
-        }
-        var document = new HtmlDocument(res.body);
-
-        // Extract comic details
-        var title = document.querySelector(
-          "div.mg-property > h2.mg-title",
-        ).text;
-        var cover = document.querySelector("div.mg-cover > mip-img").attributes[
-          "src"
-        ];
-        var author = document
-          .querySelectorAll("div.mg-property > p.mg-sub-title")[1]
-          .text.trim();
-        var genre = [];
-        var genreElements = document.querySelectorAll(
-          "div.mg-property > p.mg-cate > a",
-        );
-        for (var i = 0; i < genreElements.length; i++) {
-          genre.push(genreElements[i].text);
-        }
-        var description = document.querySelector(
-          "div.manga-introduction > mip-showmore#showmore",
-        ).text;
-
-        const time = document.querySelector(".time").text.trim();
-        // Get comic code from URL
-        var comicId = id.split("/").pop();
-
-        // Load chapters (with pagination)
-        var chapters = new Map();
-        let listChapters = [];
-        var chapterPage = 1;
-        var hasMoreChapters = true;
-
-        while (hasMoreChapters) {
-          var chapterRes = await fetch(
-            "https://m.happymh.com/v2.0/apis/manga/chapterByPage?code=" +
-              comicId +
-              "&page=" +
-              chapterPage +
-              "&lang=cn&order=asc",
-            {
-              headers: {
-                Referer: "https://m.happymh.com/manga/" + id,
-                "X-Requested-With": "XMLHttpRequest",
-              },
-            },
-          );
-          if (chapterRes.status !== 200) {
-            break; // If chapter API fails, continue with available chapters
-          }
-          var chapterData = await chapterRes.json();
-
-          if (chapterData.data) {
-            // Process chapters from current page
-            for (var i = 0; i < chapterData.data.items.length; i++) {
-              var item = chapterData.data.items[i];
-              // Format the chapter key to include comicId and chapterId
-              listChapters.push({
-                id: item.id,
-                name: item.chapterName,
-              });
+            if (res.status !== 200) {
+                throw `评论接口请求失败: ${res.status}`
             }
-            // Check if this is the last page
-            if (chapterData.data.isEnd === 1) {
-              hasMoreChapters = false;
+
+            const data = JSON.parse(res.body)
+            return {
+                comments: data.data.items.map(this.parseComment),
+                maxPage: data.data.isEnd ? page : null
             }
-            chapterPage++;
-          }
+        }
+    }
+
+    // 带缓存的章节列表加载功能
+    loadChaptersWithCache = async (comicId) => {
+        // 获取单页章节数据
+        const fetchData = async (page) => {
+            const api = `${this.baseUrl}/v2.0/apis/manga/chapterByPage?code=${comicId}&page=${page}&lang=cn&order=asc`
+            const res = await Network.get(api)
+
+            if (res.status !== 200) {
+                throw `第${page}页章节接口请求失败: ${res.status}`
+            }
+
+            return JSON.parse(res.body).data
         }
 
-        listChapters.map((e) => {
-          chapters.set(e.id, e.name);
-        });
+        // 获取第一页数据，读取总章节数
+        const firstData = await fetchData(1)
+        const total = firstData.total
 
-        const result = {
-          id: id,
-          title: title,
-          cover: cover,
-          tags: {
-            标签: genre,
-            作者: [author],
-          },
-          description: description,
-          chapters: chapters,
-          updateTime: time,
-        };
+        // 尝试读取缓存
+        const cacheKey = `chapters_${comicId}`
+        const cacheData = this.loadData(cacheKey)
 
-        return new ComicDetails(result);
-      });
-    },
-
-    loadEp: async (comicId, epId) => {
-      // Get chapter id from epId
-      var res = await fetch(
-        "https://m.happymh.com/v2.0/apis/manga/reading?code=" +
-          comicId +
-          "&cid=" +
-          epId +
-          "&v=v3.1919111",
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Referer: "https://m.happymh.com/mangaread/" + comicId + "/" + epId,
-            "X-Requested-With": "XMLHttpRequest",
-          },
-        },
-      );
-      if (res.status !== 200) {
-        throw new Error("LoadEp failed: " + res.status);
-      }
-      var data = await res.json();
-
-      // Extract images that belong to current chapter (n == 0)
-      var images = [];
-      for (var i = 0; i < data.data.scans.length; i++) {
-        var scan = data.data.scans[i];
-        if (scan.n === 0) {
-          // Only include images from current chapter, not next chapter
-          images.push(scan.url);
+        // 缓存有效，直接使用缓存
+        if (cacheData && cacheData.total === total) {
+            return cacheData.chapters
         }
-      }
 
-      return {
-        images: images,
-      };
-    },
+        // 计算总页数
+        const firstItems = firstData.items
+        const pageSize = firstItems.length
+        const totalPage = Math.ceil(total / pageSize)
 
-    onImageLoad: function (url, comicId, epId) {
-      return {
-        headers: {
-          Referer: "https://m.happymh.com/",
+        let cachePage = 1
+        let chapters = {}
+
+        // 判断是否使用缓存进行增量更新
+        if (cacheData && cacheData.total > pageSize && cacheData.total < total) {
+            cachePage = Math.floor(cacheData.total / pageSize)
+            chapters = { ...cacheData.chapters }
+        } else {
+            for (const item of firstItems) {
+                chapters[item.id] = item.chapterName
+            }
+        }
+
+        const addPage = totalPage - cachePage
+        if (addPage > 0) {
+            // 并行拉取所有新增数据
+            const pages = Array.from({ length: addPage }, (_, i) => cachePage + i + 1)
+            const addData = await Promise.all(
+                pages.map(page => fetchData(page))
+            )
+
+            // 合并新增章节数据
+            for (const data of addData) {
+                for (const item of data.items) {
+                    chapters[item.id] = item.chapterName
+                }
+            }
+        }
+
+        // 更新缓存
+        this.saveCache(cacheKey, {
+            time: Date.now(),
+            total: Object.keys(chapters).length,
+            chapters: chapters
+        })
+
+        return chapters
+    }
+
+    // 保存缓存数据，同时管理缓存键列表
+    saveCache = (key, data) => {
+        this.saveData(key, data)
+        const keys = this.loadData("cache_keys") || []
+
+        if (!keys.includes(key)) {
+            keys.push(key)
+            this.saveData("cache_keys", keys)
+        }
+    }
+
+    // 清理过期缓存
+    cleanCache = (cacheTTL) => {
+        const allKeys = this.loadData("cache_keys") || []
+        const validKeys = []
+
+        for (const key of allKeys) {
+            if (Date.now() - this.loadData(key).time < cacheTTL) {
+                validKeys.push(key)
+            } else {
+                this.deleteData(key)
+            }
+        }
+
+        this.saveData("cache_keys", validKeys)
+    }
+
+    // 初始化函数：启动时清理过期缓存
+    init() {
+        this.cleanCache(this.loadSetting("cacheTTL"))
+    }
+
+    // 发现页配置
+    explore = [{
+        title: "嗨皮漫画",
+        type: "singlePageWithMultiPart",
+        load: async () => {
+            const res = await Network.get(this.baseUrl)
+
+            if (res.status !== 200) {
+                throw `主页请求失败: ${res.status}`
+            }
+
+            const doc = new HtmlDocument(res.body)
+            const parts = doc.querySelectorAll(".manga-area")
+            const result = {}
+
+            for (const part of parts) {
+                const title = part.querySelector("h3").text.trim()
+                const comics = part.querySelectorAll(".manga-cover").map(this.parseHtmlComic)
+
+                if (comics.length > 0) {
+                    result[title] = comics
+                }
+            }
+
+            doc.dispose()
+            return result
+        }
+    }]
+
+    // 分类页配置
+    category = {
+        title: "嗨皮漫画",
+        parts: [{
+            name: "最近更新",
+            type: "fixed",
+            categories: Object.keys(this.categoryParamMap),
+            categoryParams: Object.values(this.categoryParamMap),
+            itemType: "category"
+        }],
+
+        // 启用排行榜
+        enableRankingPage: true
+    }
+
+    // 分类漫画加载功能配置
+    categoryComics = {
+        // 加载分类漫画
+        load: async (category, param, options, page) => {
+            const api = `${this.baseUrl}/apis/c/index?genre=${param}&area=${options[0]}&audience=${options[1]}&series_status=${options[2]}&pn=${page}`
+            const res = await Network.get(api, {
+                "Referer": `${this.baseUrl}/latest`
+            })
+
+            if (res.status !== 200) {
+                throw `分类接口请求失败: ${res.status}`
+            }
+
+            const data = JSON.parse(res.body)
+            return {
+                comics: data.data.items.map(this.parseJsonComic),
+                maxPage: data.data.isEnd ? page : null
+            }
         },
-      };
-    }.bind(this),
-  };
 
-  parseComic(item) {
-    return new Comic({
-      id: item.manga_code, // Keep the full URL as id
-      title: item.name,
-      cover: item.cover,
-      subtitle: `最后更新: ${item.last_chapter}`,
-      // Remove author field since it's obtained in comic details
-    });
-  }
+        // 分类筛选选项
+        optionList: [{
+            label: "地区",
+            options: [
+                "-全部",
+                "china-内地",
+                "japan-日本",
+                "hongkong-港台",
+                "europe-欧美",
+                "korea-韩国",
+                "other-其他"
+            ]
+        }, {
+            label: "受众",
+            options: [
+                "-全部",
+                "shaonian-少年",
+                "shaonv-少女",
+                "qingnian-青年",
+                "BL-BL",
+                "GL-GL"
+            ]
+        }, {
+            label: "状态",
+            options: [
+                "-全部",
+                "0-连载中",
+                "1-完结"
+            ]
+        }],
 
-  settings = {
-    clearCookie: {
-      title: "清除Cookie",
-      type: "callback",
-      buttonText: "清除",
-      callback: () => {
-        Network.deleteCookies("https://m.happymh.com/");
-        UI.showMessage("已清除Cookie");
-      },
-    },
-    enableCache: {
-      title: "启用缓存",
-      type: "switch",
-      default: true,
-    },
-    cacheDuration: {
-      title: "缓存时间 (小时)",
-      type: "input",
-      default: "1",
-    },
-    clearCache: {
-      title: "清除缓存",
-      type: "callback",
-      buttonText: "清除",
-      callback: () => {
-        this.deleteData("cache_timestamps");
-        this.deleteData("cache_data");
-        this.deleteData("cache_keys");
-        UI.showMessage("已清除缓存");
-      },
-    },
-  };
+        // 排行榜页面配置
+        ranking: {
+            // 排行榜选项
+            options: [
+                "day-日阅读",
+                "dayBookcasesOne-日收藏",
+                "week-周阅读",
+                "weekBookcase-周收藏",
+                "month-月阅读",
+                "monthBookcases-月收藏",
+                "voteRank-总评分",
+                "voteNumMonthRank-月投票"
+            ],
+
+            // 加载排行榜漫画
+            load: async (option, page) => {
+                const url = `${this.baseUrl}/rank/${option}`
+                const res = await Network.get(url)
+
+                if (res.status !== 200) {
+                    throw `排行榜页面请求失败: ${res.status}`
+                }
+
+                const doc = new HtmlDocument(res.body)
+                const comics = doc.querySelectorAll(".manga-rank").map(this.parseHtmlComic)
+                doc.dispose()
+
+                return {
+                    comics: comics,
+                    maxPage: 1
+                }
+            }
+        }
+    }
+
+    // 搜索功能配置
+    search = {
+        // 加载搜索漫画
+        load: async (keyword, options, page) => {
+            const api = `${this.baseUrl}/v2.0/apis/manga/ssearch`
+            const res = await Network.post(api, {
+                "Referer": `${this.baseUrl}/sssearch`,
+                "Content-Type": "application/x-www-form-urlencoded"
+            }, `searchkey=${encodeURIComponent(keyword)}&v=v2.13`)
+
+            if (res.status !== 200) {
+                throw `搜索接口请求失败: ${res.status}`
+            }
+
+            const data = JSON.parse(res.body)
+            return {
+                comics: data.data.items.map(this.parseJsonComic),
+                maxPage: 1
+            }
+        }
+    }
+
+    // 漫画详情页配置
+    comic = {
+        // 加载漫画详细信息
+        loadInfo: async (id) => {
+            const url = `${this.baseUrl}/manga/${id}`
+            const res = await Network.get(url)
+
+            if (res.status !== 200) {
+                throw `漫画详情页请求失败: ${res.status}`
+            }
+
+            const doc = new HtmlDocument(res.body)
+
+            // 从HTML提取JSON数据
+            const jsonInHtml = res.body.match(/<mip-data>\s*<script type="application\/json">\s*([\s\S]*?)<\/script>\s*<\/mip-data>/i)?.[1]
+            const comicData = JSON.parse(jsonInHtml)
+
+            // 从HTML解析信息
+            const title = doc.querySelector(".mg-title")?.text.trim()
+            const subTitle = doc.querySelector(".mg-sub-title")?.text.replace(/,/g, "／").trim()
+            const cover = doc.querySelector("mip-img").attributes.src
+            const authorRaw = doc.querySelectorAll(".mg-sub-title a").map(a => a.text.trim()).join(",")
+            const authors = this.formatAuthor(authorRaw)
+            const author = authors.join(" | ")
+            const genres = doc.querySelectorAll(".mg-cate a").map(a => a.text.trim()).filter(a => a)
+            const descRaw = doc.querySelector("mip-showmore")?.text.trim()
+            const description = subTitle ? [descRaw, `别名：${subTitle}`].filter(a => a).join("\n\n") : descRaw
+            const updateTimeRaw = doc.querySelector(".update-time .time")?.text.trim()
+            const updateTime = this.formatUpdateTime(updateTimeRaw)
+            const recommend = doc.querySelectorAll(".manga-cover").map(this.parseHtmlComic)
+
+            // 从内嵌JSON解析信息
+            const stars = parseFloat(comicData.score) || null
+            const status = comicData.serie_status ? "完结" : "连载中"
+
+            // 获取章节数据
+            const chapters = await this.loadChaptersWithCache(id)
+
+            doc.dispose()
+
+            return new ComicDetails({
+                title: title,
+                subTitle: author,
+                cover: cover,
+                description: description,
+                tags: {
+                    "作者": authors,
+                    "题材": genres,
+                    "状态": [status]
+                },
+                chapters: chapters,
+                recommend: recommend,
+                updateTime: updateTime,
+                url: url,
+                stars: stars
+            })
+        },
+
+        // 加载章节图片
+        loadEp: async (comicId, epId) => {
+            const api = `${this.baseUrl}/v2.0/apis/manga/reading?code=${comicId}&cid=${epId}&v=v3.1919111`
+            const res = await Network.get(api, {
+                "Referer": this.baseUrl,
+                "X-Requested-With": "XMLHttpRequest"
+            })
+
+            if (res.status !== 200) {
+                throw `章节图片接口请求失败: ${res.status}`
+            }
+
+            const data = JSON.parse(res.body)
+
+            // 去除末尾来自下一章的图片，并根据设置决定是否加载原图
+            const original = this.loadSetting("originalImage")
+            const images = data.data.scans.filter(item => item.n === 0).map(item => original ? item.url.replace(/\?.*$/, "") : item.url)
+
+            if (images.length === 0) {
+                throw "本章未找到任何图片，请确认网页来源是否正常"
+            }
+
+            return {
+                images: images
+            }
+        },
+
+        // 加载漫画评论
+        loadComments: async (comicId, subId, page, replyTo) => {
+            return await this.loadCommentsCommon(comicId, null, page, replyTo, "detail")
+        },
+
+        // 加载章节评论
+        loadChapterComments: async (comicId, epId, page, replyTo) => {
+            return await this.loadCommentsCommon(comicId, epId, page, replyTo, "read")
+        },
+
+        // 标签点击事件：作者跳转搜索，题材跳转分类
+        onClickTag: (namespace, tag) => {
+            if (namespace === "作者") {
+                return {
+                    page: "search",
+                    attributes: {
+                        keyword: tag
+                    }
+                }
+            } else if (namespace === "题材") {
+                return {
+                    page: "category",
+                    attributes: {
+                        category: tag,
+                        param: this.categoryParamMap[tag]
+                    }
+                }
+            }
+        },
+
+        // 禁用标签翻译
+        enableTagsTranslate: false
+    }
+
+    // 设置功能配置
+    settings = {
+        // 显示原图开关
+        originalImage: {
+            title: "阅读显示原图",
+            type: "switch",
+            default: false
+        },
+
+        // 评论排序选项
+        commentOrder: {
+            title: "评论排序方式",
+            type: "select",
+            options: [
+                { value: "hot", text: "最热" },
+                { value: "time", text: "最新" }
+            ],
+            default: "hot"
+        },
+
+        // 缓存有效时长选项
+        cacheTTL: {
+            title: "缓存有效时长",
+            type: "select",
+            options: [
+                { value: 0, text: "当次" },
+                { value: 604800000, text: "一周" },
+                { value: 2592000000, text: "一月" },
+                { value: 7776000000, text: "三月" },
+                { value: 15552000000, text: "半年" },
+                { value: 31104000000, text: "一年" }
+            ],
+            default: 2592000000
+        },
+
+        // 清除缓存按钮
+        wipeCache: {
+            title: "清除全部缓存",
+            type: "callback",
+            buttonText: "清除",
+            callback: () => {
+                this.cleanCache(0)
+                this.deleteData("cache_keys")
+                UI.showMessage("已清除全部缓存")
+            }
+        }
+    }
 }
