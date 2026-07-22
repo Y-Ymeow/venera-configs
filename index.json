@@ -6,6 +6,12 @@
         "version": "1.4.1"
     },
     {
+        "name": "拷贝漫画(多账号)",
+        "fileName": "copy_manga_multi_accounts.js",
+        "key": "copy_manga",
+        "version": "1.4.1"
+    },
+    {
         "name": "Komiic",
         "fileName": "komiic.js",
         "key": "Komiic",
@@ -21,13 +27,13 @@
         "name": "Picacg",
         "fileName": "picacg.js",
         "key": "picacg",
-        "version": "1.0.5"
+        "version": "1.0.6"
     },
     {
         "name": "nhentai",
         "fileName": "nhentai.js",
         "key": "nhentai",
-        "version": "1.0.6"
+        "version": "1.0.9"
     },
     {
         "name": "紳士漫畫",
