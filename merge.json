@@ -27,7 +27,7 @@
     "name": "カドコミ",
     "fileName": "comic_walker.js",
     "key": "comic_walker",
-    "version": "1.0.0"
+    "version": "1.0.1"
   },
   {
     "name": "comick",
@@ -39,7 +39,7 @@
     "name": "拷贝漫画",
     "fileName": "copy_manga.js",
     "key": "copy_manga",
-    "version": "1.4.1"
+    "version": "1.4.2"
   },
   {
     "name": "ehentai",
@@ -125,8 +125,8 @@
     "name": "MangaDex",
     "fileName": "manga_dex.js",
     "key": "manga_dex",
-    "version": "1.1.0",
-    "description": "Account feature is not supported yet."
+    "version": "1.2.0",
+    "description": "Forum login and comments are supported."
   },
   {
     "name": "Manga District",
