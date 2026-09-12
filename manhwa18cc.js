@@ -10,81 +10,6 @@ class Manhwa18cc extends ComicSource {
   ua =
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 
-  init() {
-    // 初始化逻辑，例如加载设置或数据
-  }
-
-  // --- Cache Implementation ---
-  async _withCache(key, fetcher) {
-    const enableCache = this.loadSetting("enableCache");
-    if (!enableCache) {
-      return await fetcher();
-    }
-
-    const durationHours = parseFloat(this.loadSetting("cacheDuration") || "1");
-    const CACHE_DURATION = durationHours * 60 * 60 * 1000;
-
-    const get = (obj, p) =>
-      p.split(".").reduce((acc, part) => acc && acc[part], obj);
-
-    const timestamps = this.loadData("cache_timestamps") || {};
-    const cachedTimestamp = get(timestamps, key);
-    const data = this.loadData("cache_data") || {};
-    const cachedData = get(data, key);
-
-    if (cachedTimestamp && cachedData) {
-      const isExpired = Date.now() - cachedTimestamp > CACHE_DURATION;
-      if (!isExpired) {
-        console.log(`[Cache] HIT: ${key}`);
-        return cachedData;
-      }
-    }
-
-    try {
-      console.log(
-        `[Cache] ${cachedTimestamp ? "EXPIRED" : "MISS"}: ${key}. Fetching...`,
-      );
-      const newData = await fetcher();
-
-      const set = (obj, p, val) => {
-        const parts = p.split(".");
-        const last = parts.pop();
-        let current = obj;
-        for (const part of parts) {
-          if (!current[part]) {
-            current[part] = {};
-          }
-          current = current[part];
-        }
-        current[last] = val;
-        return obj;
-      };
-
-      let allTimestamps = this.loadData("cache_timestamps") || {};
-      let allData = this.loadData("cache_data") || {};
-      let allKeys = this.loadData("cache_keys") || {};
-
-      set(allTimestamps, key, Date.now());
-      set(allData, key, newData);
-      set(allKeys, key, true);
-
-      this.saveData("cache_timestamps", allTimestamps);
-      this.saveData("cache_data", allData);
-      this.saveData("cache_keys", allKeys);
-
-      return newData;
-    } catch (e) {
-      console.error(`[Cache] FETCH FAILED for ${key}: ${e}`);
-      if (cachedData) {
-        console.log(
-          `[Cache] Using STALE data for ${key} due to network error.`,
-        );
-        return cachedData;
-      }
-      throw e;
-    }
-  }
-
   explore = [
     // 探索页配置
     {
@@ -332,11 +257,8 @@ class Manhwa18cc extends ComicSource {
 
   comic = {
     loadInfo: async (comicId) => {
-      const cacheKey = `comic.${comicId}.info`;
-      return this._withCache(cacheKey, async () => {
-        // 加载漫画详情
-        const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-        const url = `${baseUrl}/webtoon/${comicId}`;
+      const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+      const url = `${baseUrl}/webtoon/${comicId}`;
 
         const response = await Network.get(url);
         if (response.status !== 200) {
@@ -429,20 +351,18 @@ class Manhwa18cc extends ComicSource {
           chapters.set(chapterId, chapterTitle);
         }
 
-        return new ComicDetails({
-          id: comicId,
-          title: title,
-          subtitle,
-          description: description,
-          cover: cover,
-          chapters: chapters,
-          tags: {
-            作者: authors,
-            标签: tags,
-          },
-          updateTime,
-          // Artist is typically not separately listed
-        });
+      return new ComicDetails({
+        id: comicId,
+        title: title,
+        subtitle,
+        description: description,
+        cover: cover,
+        chapters: chapters,
+        tags: {
+          作者: authors,
+          标签: tags,
+        },
+        updateTime,
       });
     },
     loadEp: async (comicId, chapterId) => {
@@ -498,27 +418,6 @@ class Manhwa18cc extends ComicSource {
       title: "基础 URL",
       type: "input",
       default: "https://manhwa18.cc",
-    },
-    enableCache: {
-      title: "启用缓存",
-      type: "switch",
-      default: true,
-    },
-    cacheDuration: {
-      title: "缓存时间 (小时)",
-      type: "input",
-      default: "1",
-    },
-    clearCache: {
-      title: "清除缓存",
-      type: "callback",
-      buttonText: "清除",
-      callback: () => {
-        this.deleteData("cache_timestamps");
-        this.deleteData("cache_data");
-        this.deleteData("cache_keys");
-        UI.showMessage("已清除缓存");
-      },
-    },
+    }
   };
 }
