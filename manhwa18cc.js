@@ -91,13 +91,12 @@ class Manhwa18cc extends ComicSource {
       type: "multiPageComicList",
       title: "Manhwa 18",
       load: async (page) => {
-        // 加载韩文漫画列表
         const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-        const url = `${baseUrl}/raw/${page}`;
+        const url = page === 1 ? `${baseUrl}/` : `${baseUrl}/page/${page}/`;
 
         const response = await Network.get(url);
         if (response.status !== 200) {
-          throw new Error(`Failed to load Korean comics: ${response.status}`);
+          throw new Error(`Failed to load comics: ${response.status}`);
         }
 
         const html = response.body;
@@ -154,6 +153,105 @@ class Manhwa18cc extends ComicSource {
       },
     },
   ];
+
+  category = {
+    title: "Manhwa 18",
+    parts: [
+      {
+        name: "Genres",
+        type: "fixed",
+        categories: [
+          "Ecchi", "Mature", "Romance", "Drama", "Seinen", "Yaoi",
+          "Action", "Fantasy", "Shounen", "Supernatural", "School Life",
+          "Horror", "Thriller", "Isekai", "Comedy", "Harem", "Smut",
+          "Sports", "Adventure", "Historical", "Martial Arts", "Psychological",
+          "Slice of Life", "Hentai", "Shoujo", "Sci-fi", "Gender Bender",
+          "Yuri", "Mecha", "Tragedy", "Mystery", "GL", "Josei", "BL",
+          "Comics", "NTR", "Doujinshi", "Magic", "Family"
+        ],
+        itemType: "category",
+        categoryParams: [
+          "ecchi", "mature", "romance", "drama", "seinen", "yaoi",
+          "action", "fantasy", "shounen", "supernatural", "school-life",
+          "horror", "thriller", "isekai", "comedy", "harem", "smut",
+          "sports", "adventure", "historical", "martial-arts", "psychological",
+          "slice-of-life", "hentai", "shoujo", "sci-fi", "gender-bender",
+          "yuri", "mecha", "tragedy", "mystery", "gl", "josei", "bl",
+          "comics", "ntr", "doujinshi", "magic", "family"
+        ]
+      },
+      {
+        name: "Status",
+        type: "fixed",
+        categories: ["Completed"],
+        itemType: "category",
+        categoryParams: ["completed"]
+      }
+    ],
+    enableRankingPage: false
+  };
+
+  categoryComics = {
+    load: async (category, params, options, page) => {
+      const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+      let url;
+      if (params === "completed") {
+        url = `${baseUrl}/completed/page/${page}/`;
+      } else {
+        url = `${baseUrl}/webtoon-genre/${params}/page/${page}/`;
+      }
+
+      const response = await Network.get(url);
+      if (response.status !== 200) {
+        throw new Error(`Failed to load category: ${response.status}`);
+      }
+
+      const html = response.body;
+      const doc = new HtmlDocument(html);
+
+      const comics = [];
+      const mangaItems = doc.querySelectorAll("div.manga-item");
+
+      for (const item of mangaItems) {
+        const linkElement = item.querySelector("div.data a");
+        if (!linkElement) continue;
+
+        const href = linkElement.attributes.href;
+        const title = linkElement.text.trim();
+        const coverImg = item.querySelector("img");
+        let cover = "";
+        if (coverImg) {
+          cover = coverImg.attributes.src || coverImg.attributes["data-src"] || "";
+          if (cover.startsWith("//")) {
+            cover = "https" + cover;
+          } else if (cover.startsWith("/")) {
+            cover = baseUrl + cover;
+          }
+        }
+
+        if (href && title) {
+          const match = href.match(/\/(webtoon|raw)\/([^\/\?]+)/);
+          const comicId = match ? match[2] : href;
+
+          comics.push(
+            new Comic({
+              id: comicId,
+              title: title,
+              cover: cover,
+              url: href,
+            }),
+          );
+        }
+      }
+
+      const hasNext = !!doc.querySelector("ul.pagination li.next a");
+
+      return {
+        comics: comics,
+        maxPage: hasNext ? page + 1 : 1,
+      };
+    }
+  };
 
   search = {
     optionList: [],
