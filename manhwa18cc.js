@@ -198,7 +198,7 @@ class Manhwa18cc extends ComicSource {
       if (params === "completed") {
         url = `${baseUrl}/completed/page/${page}/`;
       } else if (params === "raw") {
-        url = `${baseUrl}/raw/page/${page}/`;
+        url = page === 1 ? `${baseUrl}/raw/` : `${baseUrl}/raw/${page}`;
       } else {
         url = `${baseUrl}/webtoon-genre/${params}/page/${page}/`;
       }
