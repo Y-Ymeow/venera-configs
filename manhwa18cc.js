@@ -92,7 +92,7 @@ class Manhwa18cc extends ComicSource {
       title: "Manhwa 18",
       load: async (page) => {
         const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-        const url = `${baseUrl}/webtoons/page/${page}/`;
+        const url = page === 1 ? `${baseUrl}/webtoons/` : `${baseUrl}/webtoons/${page}`;
 
         const response = await Network.get(url);
         if (response.status !== 200) {
@@ -196,11 +196,11 @@ class Manhwa18cc extends ComicSource {
       const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
       let url;
       if (params === "completed") {
-        url = `${baseUrl}/completed/page/${page}/`;
+        url = page === 1 ? `${baseUrl}/completed/` : `${baseUrl}/completed/${page}`;
       } else if (params === "raw") {
         url = page === 1 ? `${baseUrl}/raw/` : `${baseUrl}/raw/${page}`;
       } else {
-        url = `${baseUrl}/webtoon-genre/${params}/page/${page}/`;
+        url = page === 1 ? `${baseUrl}/webtoon-genre/${params}/` : `${baseUrl}/webtoon-genre/${params}/${page}`;
       }
 
       const response = await Network.get(url);
