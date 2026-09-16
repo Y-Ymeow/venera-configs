@@ -191,8 +191,7 @@ class Hipmh extends ComicSource {
     getJsonHeaders = () => {
         return {
             "User-Agent": this.userAgent,
-            "Accept": "application/json, text/plain, */*",
-            "Referer": this.readerBaseUrl
+            "Accept": "application/json, text/plain, */*"
         }
     }
 
