@@ -186,7 +186,8 @@ class Hipmh extends ComicSource {
     getJsonHeaders = () => {
         return {
             "User-Agent": this.userAgent,
-            "Accept": "application/json, text/plain, */*"
+            "Accept": "application/json, text/plain, */*",
+            "Referer": this.readerBaseUrl
         }
     }
 
@@ -312,6 +313,10 @@ class Hipmh extends ComicSource {
             const info = this.parseMangaDetail(doc, url)
             doc.dispose()
 
+            if (!info.id) {
+                throw "未找到漫画ID (mid)"
+            }
+
             // 获取章节列表
             let allChapters = []
             let page = 1
@@ -398,6 +403,17 @@ class Hipmh extends ComicSource {
 
             return {
                 images: images.map(path => imgBase + path)
+            }
+        },
+
+        onImageLoad: (url, comicId, epId) => {
+            return {
+                url: url,
+                method: "GET",
+                headers: {
+                    "User-Agent": this.userAgent,
+                    "Referer": this.readerBaseUrl
+                }
             }
         }
     }
