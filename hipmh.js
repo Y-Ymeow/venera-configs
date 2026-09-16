@@ -334,7 +334,7 @@ class Hipmh extends ComicSource {
             let allChapters = []
             let page = 1
             while (true) {
-                const chapterUrl = `${this.apiBaseUrl}/v1/manga/chapters?mid=${shortMid}&page=${page}&per_page=100&order=desc`
+                const chapterUrl = `${this.apiBaseUrl}/v1/manga/chapters?mid=${shortMid}&page=${page}&per_page=100&order=asc`
                 const chapterRes = await Network.get(chapterUrl, this.getJsonHeaders())
 
                 if (chapterRes.status !== 200) {
