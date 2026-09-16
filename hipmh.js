@@ -152,7 +152,12 @@ class Hipmh extends ComicSource {
         if (doc.querySelector("a[href='/completed']")) status = "completed"
         else if (doc.querySelector("a[href='/ongoing']")) status = "ongoing"
 
-        const mid = doc.querySelector("#chapters-config")?.attributes["data-mid"] || ""
+        // 从URL中提取mid，URL格式: /works/{mid}-{slug}
+        let mid = ""
+        const urlMatch = url.match(/\/works\/([^-]+)/)
+        if (urlMatch) {
+            mid = urlMatch[1]
+        }
 
         return {
             id: mid,
