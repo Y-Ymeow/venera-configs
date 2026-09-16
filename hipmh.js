@@ -306,8 +306,11 @@ class Hipmh extends ComicSource {
     // 漫画详情配置
     comic = {
         loadInfo: async (id) => {
+            // API只接受短mid（第一个-之前的部分）
+            const shortMid = id.split("-")[0]
+
             // 使用API获取漫画详情
-            const apiUrl = `${this.apiBaseUrl}/v1/manga?mid=${id}`
+            const apiUrl = `${this.apiBaseUrl}/v1/manga?mid=${shortMid}`
             const apiRes = await Network.get(apiUrl, this.getJsonHeaders())
 
             if (apiRes.status !== 200) {
@@ -331,7 +334,7 @@ class Hipmh extends ComicSource {
             let allChapters = []
             let page = 1
             while (true) {
-                const chapterUrl = `${this.apiBaseUrl}/v1/manga/chapters?mid=${id}&page=${page}&per_page=100&order=desc`
+                const chapterUrl = `${this.apiBaseUrl}/v1/manga/chapters?mid=${shortMid}&page=${page}&per_page=100&order=desc`
                 const chapterRes = await Network.get(chapterUrl, this.getJsonHeaders())
 
                 if (chapterRes.status !== 200) {
