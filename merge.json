@@ -67,6 +67,12 @@
     "description": "中国大陆及日韩IP无法访问，遇到403可以尝试切换其他地区网络"
   },
   {
+    "name": "嬉皮漫画",
+    "fileName": "hipmh.js",
+    "key": "hipmh",
+    "version": "1.0.0"
+  },
+  {
     "name": "H-Comic",
     "fileName": "hcomic.js",
     "key": "hcomic",
