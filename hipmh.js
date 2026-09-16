@@ -417,6 +417,18 @@ class Hipmh extends ComicSource {
                 method: "GET",
                 headers: {
                     "User-Agent": this.userAgent,
+                    "Referer": this.readerBaseUrl,
+                    "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+                }
+            }
+        },
+
+        onThumbnailLoad: (url) => {
+            return {
+                url: url,
+                method: "GET",
+                headers: {
+                    "User-Agent": this.userAgent,
                     "Referer": this.readerBaseUrl
                 }
             }
