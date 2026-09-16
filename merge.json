@@ -146,12 +146,7 @@
     "key": "manhwa18cc",
     "version": "1.0.8"
   },
-  {
-    "name": "Manhwa Raw",
-    "fileName": "manhwa_raw.js",
-    "key": "manhwa_raw",
-    "version": "1.1.4"
-  },
+
   {
     "name": "Manhwa Raw Net",
     "fileName": "manhwa_raw_net.js",
