@@ -412,6 +412,11 @@ class Hipmh extends ComicSource {
         },
 
         onImageLoad: (url, comicId, epId) => {
+            // 支持两个线路的fallback
+            const lines = ["hip-tx-1.s3imgs.top", "hip-cf-1.s3imgs.top"]
+            let currentLine = lines.find(l => url.includes(l)) || lines[0]
+            let fallbackLine = lines.find(l => l !== currentLine) || lines[0]
+
             return {
                 url: url,
                 method: "GET",
@@ -419,6 +424,18 @@ class Hipmh extends ComicSource {
                     "User-Agent": this.userAgent,
                     "Referer": this.readerBaseUrl,
                     "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+                },
+                onLoadFailed: () => {
+                    const fallbackUrl = url.replace(currentLine, fallbackLine)
+                    return {
+                        url: fallbackUrl,
+                        method: "GET",
+                        headers: {
+                            "User-Agent": this.userAgent,
+                            "Referer": this.readerBaseUrl,
+                            "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+                        }
+                    }
                 }
             }
         },
@@ -429,7 +446,7 @@ class Hipmh extends ComicSource {
                 method: "GET",
                 headers: {
                     "User-Agent": this.userAgent,
-                    "Referer": this.readerBaseUrl
+                    "Referer": "https://m.hipmh.com/"
                 }
             }
         }
