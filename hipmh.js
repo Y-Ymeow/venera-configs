@@ -307,26 +307,32 @@ class Hipmh extends ComicSource {
     // 漫画详情配置
     comic = {
         loadInfo: async (id) => {
-            const url = `${this.readerBaseUrl}/works/${id}`
-            const res = await Network.get(url, { "User-Agent": this.userAgent })
+            // 使用API获取漫画详情
+            const apiUrl = `${this.apiBaseUrl}/v1/manga?mid=${id}`
+            const apiRes = await Network.get(apiUrl, this.getJsonHeaders())
 
-            if (res.status !== 200) {
-                throw `漫画详情请求失败: ${res.status}`
+            if (apiRes.status !== 200) {
+                throw `漫画详情请求失败: ${apiRes.status}`
             }
 
-            const doc = new HtmlDocument(res.body)
-            const info = this.parseMangaDetail(doc, url)
-            doc.dispose()
-
-            if (!info.id) {
-                throw "未找到漫画ID (mid)"
+            const apiJson = JSON.parse(apiRes.body)
+            if (apiJson.code !== 200) {
+                throw `接口返回错误: ${apiJson.message}`
             }
+
+            const data = apiJson.data
+            const title = data.title || ""
+            const description = data.description || ""
+            const cover = data.vertical_image_url ? `https://cover.s3imgs.top${data.vertical_image_url}` : ""
+            const authors = (data.authors || []).map(a => a.name).filter(a => a)
+            const genres = (data.genres || []).map(g => g.name).filter(g => g)
+            const status = data.status === "completed" ? "completed" : data.status === "ongoing" ? "ongoing" : "unknown"
 
             // 获取章节列表
             let allChapters = []
             let page = 1
             while (true) {
-                const chapterUrl = `${this.apiBaseUrl}/v1/manga/chapters?mid=${info.id}&page=${page}&per_page=100&order=desc`
+                const chapterUrl = `${this.apiBaseUrl}/v1/manga/chapters?mid=${id}&page=${page}&per_page=100&order=desc`
                 const chapterRes = await Network.get(chapterUrl, this.getJsonHeaders())
 
                 if (chapterRes.status !== 200) {
@@ -354,11 +360,12 @@ class Hipmh extends ComicSource {
             })
 
             return new ComicDetails({
-                title: info.title,
-                cover: info.cover,
-                description: info.description,
+                title: title,
+                cover: cover,
+                description: description,
                 tags: {
-                    "类型": info.tags ? info.tags.split(", ") : []
+                    "作者": authors,
+                    "类型": genres
                 },
                 chapters: chapters,
                 recommend: []
@@ -412,30 +419,17 @@ class Hipmh extends ComicSource {
         },
 
         onImageLoad: (url, comicId, epId) => {
-            // 支持两个线路的fallback
-            const lines = ["hip-tx-1.s3imgs.top", "hip-cf-1.s3imgs.top"]
-            let currentLine = lines.find(l => url.includes(l)) || lines[0]
-            let fallbackLine = lines.find(l => l !== currentLine) || lines[0]
+            // 根据设置选择线路
+            const selectedLine = this.loadSetting("imageLine")
+            const newUrl = url.replace(/hip-(tx|cf)-1\.s3imgs\.top/, selectedLine)
 
             return {
-                url: url,
+                url: newUrl,
                 method: "GET",
                 headers: {
                     "User-Agent": this.userAgent,
                     "Referer": this.readerBaseUrl,
                     "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
-                },
-                onLoadFailed: () => {
-                    const fallbackUrl = url.replace(currentLine, fallbackLine)
-                    return {
-                        url: fallbackUrl,
-                        method: "GET",
-                        headers: {
-                            "User-Agent": this.userAgent,
-                            "Referer": this.readerBaseUrl,
-                            "Accept": "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
-                        }
-                    }
                 }
             }
         },
@@ -453,5 +447,15 @@ class Hipmh extends ComicSource {
     }
 
     // 设置配置
-    settings = {}
+    settings = {
+        imageLine: {
+            title: "图片线路",
+            type: "select",
+            options: [
+                { value: "hip-tx-1.s3imgs.top", text: "线路1 (tx)" },
+                { value: "hip-cf-1.s3imgs.top", text: "线路2 (cf)" }
+            ],
+            default: "hip-tx-1.s3imgs.top"
+        }
+    }
 }
