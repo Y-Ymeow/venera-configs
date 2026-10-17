@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.8";
+  version = "1.0.9";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -17,7 +17,8 @@ class Manhwa18cc extends ComicSource {
       title: "Manhwa 18",
       load: async (page) => {
         const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
-        const url = page === 1 ? `${baseUrl}/webtoons/` : `${baseUrl}/webtoons/${page}`;
+        const url =
+          page === 1 ? `${baseUrl}/webtoons/` : `${baseUrl}/webtoons/${page}`;
 
         const response = await Network.get(url);
         if (response.status !== 200) {
@@ -36,7 +37,7 @@ class Manhwa18cc extends ComicSource {
           if (!linkElement) continue;
 
           const href = linkElement.attributes.href;
-          const title = linkElement.text.trim();
+          const title = linkElement?.text?.trim();
           const coverImg = item.querySelector("img");
           let cover = "";
           if (coverImg) {
@@ -86,34 +87,98 @@ class Manhwa18cc extends ComicSource {
         name: "Genres",
         type: "fixed",
         categories: [
-          "Ecchi", "Mature", "Romance", "Drama", "Seinen", "Yaoi",
-          "Action", "Fantasy", "Shounen", "Supernatural", "School Life",
-          "Horror", "Thriller", "Isekai", "Comedy", "Harem", "Smut",
-          "Sports", "Adventure", "Historical", "Martial Arts", "Psychological",
-          "Slice of Life", "Hentai", "Shoujo", "Sci-fi", "Gender Bender",
-          "Yuri", "Mecha", "Tragedy", "Mystery", "GL", "Josei", "BL",
-          "Comics", "NTR", "Doujinshi", "Magic", "Family"
+          "Ecchi",
+          "Mature",
+          "Romance",
+          "Drama",
+          "Seinen",
+          "Yaoi",
+          "Action",
+          "Fantasy",
+          "Shounen",
+          "Supernatural",
+          "School Life",
+          "Horror",
+          "Thriller",
+          "Isekai",
+          "Comedy",
+          "Harem",
+          "Smut",
+          "Sports",
+          "Adventure",
+          "Historical",
+          "Martial Arts",
+          "Psychological",
+          "Slice of Life",
+          "Hentai",
+          "Shoujo",
+          "Sci-fi",
+          "Gender Bender",
+          "Yuri",
+          "Mecha",
+          "Tragedy",
+          "Mystery",
+          "GL",
+          "Josei",
+          "BL",
+          "Comics",
+          "NTR",
+          "Doujinshi",
+          "Magic",
+          "Family",
         ],
         itemType: "category",
         categoryParams: [
-          "ecchi", "mature", "romance", "drama", "seinen", "yaoi",
-          "action", "fantasy", "shounen", "supernatural", "school-life",
-          "horror", "thriller", "isekai", "comedy", "harem", "smut",
-          "sports", "adventure", "historical", "martial-arts", "psychological",
-          "slice-of-life", "hentai", "shoujo", "sci-fi", "gender-bender",
-          "yuri", "mecha", "tragedy", "mystery", "gl", "josei", "bl",
-          "comics", "ntr", "doujinshi", "magic", "family"
-        ]
+          "ecchi",
+          "mature",
+          "romance",
+          "drama",
+          "seinen",
+          "yaoi",
+          "action",
+          "fantasy",
+          "shounen",
+          "supernatural",
+          "school-life",
+          "horror",
+          "thriller",
+          "isekai",
+          "comedy",
+          "harem",
+          "smut",
+          "sports",
+          "adventure",
+          "historical",
+          "martial-arts",
+          "psychological",
+          "slice-of-life",
+          "hentai",
+          "shoujo",
+          "sci-fi",
+          "gender-bender",
+          "yuri",
+          "mecha",
+          "tragedy",
+          "mystery",
+          "gl",
+          "josei",
+          "bl",
+          "comics",
+          "ntr",
+          "doujinshi",
+          "magic",
+          "family",
+        ],
       },
       {
         name: "Status",
         type: "fixed",
         categories: ["Completed", "Raw"],
         itemType: "category",
-        categoryParams: ["completed", "raw"]
-      }
+        categoryParams: ["completed", "raw"],
+      },
     ],
-    enableRankingPage: false
+    enableRankingPage: false,
   };
 
   categoryComics = {
@@ -121,11 +186,15 @@ class Manhwa18cc extends ComicSource {
       const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
       let url;
       if (params === "completed") {
-        url = page === 1 ? `${baseUrl}/completed/` : `${baseUrl}/completed/${page}`;
+        url =
+          page === 1 ? `${baseUrl}/completed/` : `${baseUrl}/completed/${page}`;
       } else if (params === "raw") {
         url = page === 1 ? `${baseUrl}/raw/` : `${baseUrl}/raw/${page}`;
       } else {
-        url = page === 1 ? `${baseUrl}/webtoon-genre/${params}/` : `${baseUrl}/webtoon-genre/${params}/${page}`;
+        url =
+          page === 1
+            ? `${baseUrl}/webtoon-genre/${params}/`
+            : `${baseUrl}/webtoon-genre/${params}/${page}`;
       }
 
       const response = await Network.get(url);
@@ -144,11 +213,12 @@ class Manhwa18cc extends ComicSource {
         if (!linkElement) continue;
 
         const href = linkElement.attributes.href;
-        const title = linkElement.text.trim();
+        const title = linkElement?.text?.trim();
         const coverImg = item.querySelector("img");
         let cover = "";
         if (coverImg) {
-          cover = coverImg.attributes.src || coverImg.attributes["data-src"] || "";
+          cover =
+            coverImg.attributes.src || coverImg.attributes["data-src"] || "";
           if (cover.startsWith("//")) {
             cover = "https" + cover;
           } else if (cover.startsWith("/")) {
@@ -177,7 +247,7 @@ class Manhwa18cc extends ComicSource {
         comics: comics,
         maxPage: hasNext ? page + 1 : 1,
       };
-    }
+    },
   };
 
   search = {
@@ -213,7 +283,7 @@ class Manhwa18cc extends ComicSource {
         if (!linkElement) continue;
 
         const href = linkElement.attributes.href;
-        const title = linkElement.text.trim();
+        const title = linkElement?.text?.trim();
         const coverImg = item.querySelector("img");
         let cover = "";
         if (coverImg) {
@@ -260,96 +330,95 @@ class Manhwa18cc extends ComicSource {
       const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
       const url = `${baseUrl}/webtoon/${comicId}`;
 
-        const response = await Network.get(url);
-        if (response.status !== 200) {
-          throw new Error(`Failed to load comic info: ${response.status}`);
+      const response = await Network.get(url);
+      if (response.status !== 200) {
+        throw new Error(`Failed to load comic info: ${response.status}`);
+      }
+
+      const html = response.body;
+      const doc = new HtmlDocument(html);
+
+      // Extract comic details
+      const titleElement = doc.querySelector(".post-title h1");
+      const span = titleElement.querySelector("span");
+      const title = titleElement?.text?.replace(span?.text, "").trim();
+
+      const subTitleElement = doc.querySelector(
+        ".post-content > .post-content_item",
+      );
+      const subtitle = subTitleElement
+        .querySelector(".summary-content")
+        ?.text?.trim();
+
+      let cover = "";
+      const coverElement = doc.querySelector(".centernav .summary_image img");
+      if (coverElement) {
+        cover = coverElement.attributes.src;
+        // Ensure the cover URL is absolute
+        if (cover.startsWith("//")) {
+          cover = "https:" + cover;
+        } else if (cover.startsWith("/")) {
+          const baseUrl = this.loadSetting("baseUrl") || "https://manhwa18.cc";
+          cover = baseUrl + cover;
+        }
+      }
+
+      const descriptionElement = doc.querySelector(
+        "div.panel-story-description div.dsct",
+      );
+      const description = descriptionElement
+        ? descriptionElement?.text?.trim()
+        : "";
+
+      // Extract authors
+      const authors = [];
+      const authorElements = doc.querySelectorAll(".author-content a");
+      for (const authorEl of authorElements) {
+        authors.push(authorEl?.text?.trim());
+      }
+
+      // Extract tags
+      const tags = [];
+      const tagElements = doc.querySelectorAll(
+        ".genres-content a, .artist-content a",
+      );
+      for (const tagEl of tagElements) {
+        tags.push(tagEl?.text?.trim());
+      }
+
+      // Extract chapters
+      const chapters = new Map();
+      const chapterElements = doc.querySelectorAll("li.a-h").reverse();
+
+      let updateTime = doc
+        .querySelector("li.a-h span.chapter-time")
+        ?.text?.trim();
+
+      let updateTimeDate = new Date(updateTime);
+      updateTimeDate.setDate(updateTimeDate.getDate() + 1);
+      updateTime = updateTimeDate.toISOString().slice(0, 10);
+
+      for (let i = 0; i < chapterElements.length; i++) {
+        const chapterEl = chapterElements[i];
+        const linkElement = chapterEl.querySelector("a");
+        if (!linkElement) continue;
+
+        const href = linkElement.attributes.href;
+        const chapterTitle = linkElement?.text?.trim() || `Chapter ${i + 1}`;
+
+        // Extract chapter ID from URL
+        const chapterMatch = href.match(/\/chapter\/([^\/\?]+)/);
+        const chapterId = chapterMatch ? chapterMatch[1] : href;
+
+        // Extract date if available
+        let date = "";
+        const dateElement = chapterEl.querySelector("span.chapter-time");
+        if (dateElement) {
+          date = dateElement?.text?.trim();
         }
 
-        const html = response.body;
-        const doc = new HtmlDocument(html);
-
-        // Extract comic details
-        const titleElement = doc.querySelector(".post-title h1");
-        const span = titleElement.querySelector("span");
-        const title = titleElement.text.replace(span.text, "").trim();
-
-        const subTitleElement = doc.querySelector(
-          ".post-content > .post-content_item",
-        );
-        const subtitle = subTitleElement
-          .querySelector(".summary-content")
-          ?.text.trim();
-
-        let cover = "";
-        const coverElement = doc.querySelector(".centernav .summary_image img");
-        if (coverElement) {
-          cover = coverElement.attributes.src;
-          // Ensure the cover URL is absolute
-          if (cover.startsWith("//")) {
-            cover = "https:" + cover;
-          } else if (cover.startsWith("/")) {
-            const baseUrl =
-              this.loadSetting("baseUrl") || "https://manhwa18.cc";
-            cover = baseUrl + cover;
-          }
-        }
-
-        const descriptionElement = doc.querySelector(
-          "div.panel-story-description div.dsct",
-        );
-        const description = descriptionElement
-          ? descriptionElement.text.trim()
-          : "";
-
-        // Extract authors
-        const authors = [];
-        const authorElements = doc.querySelectorAll(".author-content a");
-        for (const authorEl of authorElements) {
-          authors.push(authorEl.text.trim());
-        }
-
-        // Extract tags
-        const tags = [];
-        const tagElements = doc.querySelectorAll(
-          ".genres-content a, .artist-content a",
-        );
-        for (const tagEl of tagElements) {
-          tags.push(tagEl.text.trim());
-        }
-
-        // Extract chapters
-        const chapters = new Map();
-        const chapterElements = doc.querySelectorAll("li.a-h").reverse();
-
-        let updateTime = doc
-          .querySelector("li.a-h span.chapter-time")
-          .text.trim();
-
-        let updateTimeDate = new Date(updateTime);
-        updateTimeDate.setDate(updateTimeDate.getDate() + 1);
-        updateTime = updateTimeDate.toISOString().slice(0, 10);
-
-        for (let i = 0; i < chapterElements.length; i++) {
-          const chapterEl = chapterElements[i];
-          const linkElement = chapterEl.querySelector("a");
-          if (!linkElement) continue;
-
-          const href = linkElement.attributes.href;
-          const chapterTitle = linkElement.text.trim() || `Chapter ${i + 1}`;
-
-          // Extract chapter ID from URL
-          const chapterMatch = href.match(/\/chapter\/([^\/\?]+)/);
-          const chapterId = chapterMatch ? chapterMatch[1] : href;
-
-          // Extract date if available
-          let date = "";
-          const dateElement = chapterEl.querySelector("span.chapter-time");
-          if (dateElement) {
-            date = dateElement.text.trim();
-          }
-
-          chapters.set(chapterId, chapterTitle);
-        }
+        chapters.set(chapterId, chapterTitle);
+      }
 
       return new ComicDetails({
         id: comicId,
@@ -418,6 +487,6 @@ class Manhwa18cc extends ComicSource {
       title: "基础 URL",
       type: "input",
       default: "https://manhwa18.cc",
-    }
+    },
   };
 }
