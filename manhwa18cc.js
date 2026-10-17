@@ -2,7 +2,7 @@ class Manhwa18cc extends ComicSource {
   // Required metadata
   name = "Manhwa18cc";
   key = "manhwa18cc";
-  version = "1.0.9";
+  version = "1.0.10";
   minAppVersion = "1.0.0"; // 请根据实际情况更新
   url =
     "https://gh-proxy.com/https://raw.githubusercontent.com/Y-Ymeow/venera-configs/main/manhwa18cc.js";
@@ -390,13 +390,58 @@ class Manhwa18cc extends ComicSource {
       const chapters = new Map();
       const chapterElements = doc.querySelectorAll("li.a-h").reverse();
 
-      let updateTime = doc
-        .querySelector("li.a-h span.chapter-time")
-        ?.text?.trim();
+      // 最新的章节可能还没显示时间（站点用 new 图标代替），
+      // 所以从最新章节往后找第一个有时间的章节，找不到则返回空字符串
+      const monthMap = {
+        Jan: 0,
+        Feb: 1,
+        Mar: 2,
+        Apr: 3,
+        May: 4,
+        Jun: 5,
+        Jul: 6,
+        Aug: 7,
+        Sep: 8,
+        Oct: 9,
+        Nov: 10,
+        Dec: 11,
+      };
 
-      let updateTimeDate = new Date(updateTime);
-      updateTimeDate.setDate(updateTimeDate.getDate() + 1);
-      updateTime = updateTimeDate.toISOString().slice(0, 10);
+      const parseDateText = (text) => {
+        if (!text) return null;
+        const match = String(text)
+          .trim()
+          .match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?\s+(\d{4})$/);
+        if (!match) return null;
+        const month =
+          monthMap[
+            match[2][0].toUpperCase() + match[2].slice(1, 3).toLowerCase()
+          ];
+        if (month === undefined) return null;
+        const date = new Date(Number(match[3]), month, Number(match[1]));
+        return isNaN(date.getTime()) ? null : date;
+      };
+
+      // 按本地日期部分格式化，避免 toISOString 受时区影响而差一天
+      const formatDate = (date) => {
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+          date.getDate(),
+        )}`;
+      };
+
+      let updateTime = "";
+      // chapterElements 已经是升序（旧 → 新），从后往前取最新的有效时间
+      for (let i = chapterElements.length - 1; i >= 0; i--) {
+        const dateText = chapterElements[i].querySelector(
+          "span.chapter-time",
+        )?.text;
+        const parsed = parseDateText(dateText);
+        if (parsed) {
+          updateTime = formatDate(parsed);
+          break;
+        }
+      }
 
       for (let i = 0; i < chapterElements.length; i++) {
         const chapterEl = chapterElements[i];
