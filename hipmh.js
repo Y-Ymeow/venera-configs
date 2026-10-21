@@ -1,7 +1,7 @@
 class Hipmh extends ComicSource {
     name = "嬉皮漫画"
     key = "hipmh"
-    version = "1.0.0"
+    version = "1.0.1"
     minAppVersion = "1.6.0"
     url = "https://cdn.jsdelivr.net/gh/venera-app/venera-configs@main/hipmh.js"
 
@@ -85,9 +85,15 @@ class Hipmh extends ComicSource {
 
     // 解析搜索结果
     parseSearchResult = (json, isSearch) => {
-        const data = json.data
+        const data = json.data || {}
         const list = isSearch ? (data.data || []) : (data.items || [])
-        const totalPages = data.total_pages || 1
+        // 部分接口可能不返回 total_pages，此时用 total / 每页数量兜底
+        let totalPages = parseInt(data.total_pages)
+        if (!totalPages || totalPages < 1) {
+            const total = parseInt(data.total)
+            const perPage = parseInt(isSearch ? data.page_size : data.per_page) || (isSearch ? 24 : 18)
+            totalPages = total > 0 ? Math.ceil(total / perPage) : 1
+        }
         const comics = list.map(item => {
             if (isSearch) {
                 return this.parseSearchComic(item)
@@ -232,7 +238,8 @@ class Hipmh extends ComicSource {
             name: "分类",
             type: "fixed",
             categories: ["全部", "国漫", "韩漫", "日漫", "武侠", "玄幻", "系统", "冒险", "异能", "剧情", "宫斗", "逆袭", "重生", "穿越", "大女主", "动作", "复仇"],
-            categoryParams: ["", "2", "1", "3", "39", "27", "67", "38", "51", "3", "44", "32", "46", "20", "30", "40", "31"],
+            // c 前缀表示 category 分类，g 前缀表示 genre 题材
+            categoryParams: ["", "c2", "c1", "c3", "g39", "g27", "g67", "g38", "g51", "g3", "g44", "g32", "g46", "g20", "g30", "g40", "g31"],
             itemType: "category"
         }],
         enableRankingPage: false
@@ -243,10 +250,14 @@ class Hipmh extends ComicSource {
         load: async (category, param, options, page) => {
             let url = `${this.apiBaseUrl}/v1/mangas?page=${page}&per_page=18&sort=updated`
             if (param) {
-                if (param.length <= 2) {
-                    url += `&category=${param}`
-                } else {
-                    url += `&genre=${param}`
+                const type = param[0]
+                const value = param.slice(1)
+                if (/^\d+$/.test(value)) {
+                    if (type === "c") {
+                        url += `&category=${value}`
+                    } else if (type === "g") {
+                        url += `&genre=${value}`
+                    }
                 }
             }
 
