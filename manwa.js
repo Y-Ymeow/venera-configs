@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.1.7";
+  version = "1.1.8";
   minAppVersion = "1.4.0";
 
   url =
@@ -477,27 +477,53 @@ class Manwa extends ComicSource {
       // Get the image source setting
       const imageSourceParam = this.loadSetting("imageSource") || "";
 
-      const res = await Network.get(
-        this.buildUrl(`chapter/${epId}${imageSourceParam}`),
-        {
-          "User-Agent": Manwa.ua,
-        },
-      );
+      // 漫蛙把超长章节按每页 100 张图拆成多页（页面底部「第 x / N 页」，
+      // 翻页参数是 ?page=N）。只读第 1 页会让长章节永远停在第 100 张图，
+      // 所以这里先读第 1 页拿到总页数，再把剩余页依次取完。
+      const fetchPage = async (page) => {
+        const query = [
+          page > 1 ? `page=${page}` : "",
+          imageSourceParam.replace(/^[?&]/, ""),
+        ].filter(Boolean);
+        const res = await Network.get(
+          this.buildUrl(
+            `chapter/${epId}${query.length ? `?${query.join("&")}` : ""}`,
+          ),
+          {
+            "User-Agent": Manwa.ua,
+          },
+        );
 
-      if (res.status !== 200) {
-        throw new Error(`Failed to load chapter images: ${res.status}`);
+        if (res.status !== 200) {
+          throw new Error(`Failed to load chapter images: ${res.status}`);
+        }
+
+        const document = new HtmlDocument(res.body);
+        const images = document
+          .querySelectorAll("#cp_img > div.img-content > img[data-r-src]")
+          .map((element) => element.attributes["data-r-src"]);
+
+        // 没有分页导航（章节不足一页）时按 1 页处理
+        const pageInfo = document.querySelector(
+          ".chapter-page-nav .page-info",
+        );
+        const totalMatch = (pageInfo?.text || "").match(/\d+\s*\/\s*(\d+)/);
+
+        return {
+          images,
+          totalPages: totalMatch ? parseInt(totalMatch[1], 10) : 1,
+        };
+      };
+
+      const firstPage = await fetchPage(1);
+      const images = [...firstPage.images];
+      for (let page = 2; page <= firstPage.totalPages; page++) {
+        const nextPage = await fetchPage(page);
+        images.push(...nextPage.images);
       }
 
-      const document = new HtmlDocument(res.body);
-      const imageElements = document.querySelectorAll(
-        "#cp_img > div.img-content > img[data-r-src]",
-      );
-      const images = imageElements.map(
-        (element) => element.attributes["data-r-src"],
-      );
-
       return {
-        images: images,
+        images,
       };
     },
     /**
