@@ -2,7 +2,7 @@
 class Manwa extends ComicSource {
   name = "漫蛙";
   key = "manwa";
-  version = "1.1.6";
+  version = "1.1.7";
   minAppVersion = "1.4.0";
 
   url =
@@ -163,9 +163,12 @@ class Manwa extends ComicSource {
 
         const currentDomain =
           this.loadData(this.#domain_key) || this.#defaultDomains[0];
-        const initialIndex = domains.findIndex((d) => d === currentDomain);
 
         const newDomains = ["https://manwa.me", ...domains];
+        // initialIndex 必须按 newDomains 算：前面额外插了一条 manwa.me，
+        // 若按原 domains 算，索引整体偏小一位，弹窗里「当前域名」的高亮
+        // 永远落在上一项（选了最后一项，再打开仍高亮倒数第二项）。
+        const initialIndex = newDomains.findIndex((d) => d === currentDomain);
         const selectedIndex = await UI.showSelectDialog(
           "选择一个可用域名",
           newDomains,
